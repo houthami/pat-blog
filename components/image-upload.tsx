@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Upload, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,10 +14,22 @@ interface ImageUploadProps {
 
 export function ImageUpload({ value, onChange }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false)
+  const { data: session, status } = useSession()
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (acceptedFiles.length === 0) return
+
+      // Check if user is authenticated
+      if (status === "loading") {
+        console.log("Session loading, please wait...")
+        return
+      }
+
+      if (!session) {
+        console.error("User not authenticated")
+        return
+      }
 
       const file = acceptedFiles[0]
       setIsUploading(true)
@@ -26,16 +39,24 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
         const formData = new FormData()
         formData.append("file", file)
 
+        console.log("Uploading file:", file.name)
+        console.log("Session:", session.user?.email)
+
         const response = await fetch("/api/upload", {
           method: "POST",
           body: formData,
+          credentials: "include", // Include cookies/session for authentication
         })
+
+        console.log("Upload response status:", response.status)
 
         if (response.ok) {
           const { url } = await response.json()
+          console.log("Upload successful, URL:", url)
           onChange(url)
         } else {
-          console.error("Upload failed")
+          const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+          console.error("Upload failed:", response.status, errorData)
         }
       } catch (error) {
         console.error("Error uploading file:", error)
@@ -43,8 +64,11 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
         setIsUploading(false)
       }
     },
-    [onChange],
+    [onChange, session, status],
   )
+
+  // Disable dropzone if uploading OR if user is not authenticated
+  const isDisabled = isUploading || status === "loading" || !session
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -52,7 +76,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
       "image/*": [".jpeg", ".jpg", ".png", ".webp"],
     },
     maxFiles: 1,
-    disabled: isUploading,
+    disabled: isDisabled,
   })
 
   const removeImage = () => {
@@ -77,13 +101,31 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
     )
   }
 
+  // Show different states based on session and upload status
+  const getDisplayText = () => {
+    if (status === "loading") {
+      return "Loading session..."
+    }
+    if (!session) {
+      return "Please log in to upload images"
+    }
+    if (isUploading) {
+      return "Uploading..."
+    }
+    if (isDragActive) {
+      return "Drop your image here"
+    }
+    return "Drag & drop an image, or click to select"
+  }
+
   return (
     <div
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-accent",
-        isDragActive && "border-accent bg-accent/5",
-        isUploading && "opacity-50 cursor-not-allowed",
+        "border-2 border-dashed border-border rounded-lg p-8 text-center transition-colors",
+        !isDisabled && "cursor-pointer hover:border-accent",
+        isDragActive && !isDisabled && "border-accent bg-accent/5",
+        isDisabled && "opacity-50 cursor-not-allowed border-muted",
       )}
     >
       <input {...getInputProps()} />
@@ -96,10 +138,13 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
           )}
         </div>
         <div>
-          <p className="text-sm font-medium">
-            {isDragActive ? "Drop your image here" : "Drag & drop an image, or click to select"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP up to 10MB</p>
+          <p className="text-sm font-medium">{getDisplayText()}</p>
+          {session && !isUploading && (
+            <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WEBP up to 10MB</p>
+          )}
+          {!session && status !== "loading" && (
+            <p className="text-xs text-destructive mt-1">Authentication required</p>
+          )}
         </div>
       </div>
     </div>

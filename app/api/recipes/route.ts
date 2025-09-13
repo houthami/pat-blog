@@ -11,9 +11,18 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    // Find user by email to get correct ID
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email || "admin@pastry.com" }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
     const recipes = await prisma.recipe.findMany({
       where: {
-        authorId: session.user.id,
+        authorId: user.id,
       },
       orderBy: {
         createdAt: "desc",
@@ -50,15 +59,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
+    // Convert ingredients and instructions to arrays and then to JSON
+    const ingredientsArray = ingredients?.trim() 
+      ? ingredients.split('\n').filter((item: string) => item.trim()).map((item: string) => item.replace(/^[•\-\*]\s*/, '').trim())
+      : []
+    
+    const instructionsArray = instructions?.trim()
+      ? instructions.split('\n').filter((item: string) => item.trim()).map((item: string, index: number) => {
+          // Remove any existing numbering and trim
+          return item.replace(/^\d+\.\s*/, '').trim()
+        })
+      : []
+
+    // Find user by email (since we know the email from session)
+    let user = await prisma.user.findUnique({
+      where: { email: session.user.email || "admin@pastry.com" }
+    })
+
+    if (!user) {
+      // This shouldn't happen if user is logged in, but just in case
+      throw new Error("User not found in database. Please contact support.")
+    }
+
+    console.log("Using existing user:", user.id, user.email)
+
     const recipe = await prisma.recipe.create({
       data: {
         title: title.trim(),
         description: description?.trim() || null,
-        ingredients: ingredients?.trim() || "",
-        instructions: instructions?.trim() || "",
+        ingredients: JSON.stringify(ingredientsArray),
+        instructions: JSON.stringify(instructionsArray),
         imageUrl: imageUrl || null,
         published: Boolean(published),
-        authorId: session.user.id,
+        authorId: user.id,
       },
     })
 

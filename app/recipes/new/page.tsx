@@ -256,7 +256,7 @@ export default function NewRecipePage() {
                   onClick={() => handleSubmit(true)}
                   className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground"
                   disabled={
-                    isLoading || !formData.title.trim() || !formData.ingredients.trim() || !formData.instructions.trim()
+                    isLoading || !formData.title.trim()
                   }
                 >
                   {isLoading ? (

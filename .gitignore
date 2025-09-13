@@ -6,6 +6,7 @@
 # next.js
 /.next/
 /out/
+/.claude/
 
 # production
 /build
@@ -15,6 +16,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+package-lock.json
 
 # env files
 .env*
@@ -25,3 +27,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# uploaded files
+/public/uploads/*
+!/public/uploads/.keep
