@@ -10,6 +10,7 @@
 
 # production
 /build
+/infra
 
 # debug
 npm-debug.log*

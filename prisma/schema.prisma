@@ -37,5 +37,136 @@ model Recipe {
   authorId    String
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   
+  // Analytics relationships
+  views       RecipeView[]
+  interactions RecipeInteraction[]
+  revenues    RecipeRevenue[]
+  comments    RecipeComment[]
+  
   @@map("recipes")
+}
+
+model RecipeView {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  // Visitor Info
+  visitorId String   // Anonymous visitor ID (cookie-based)
+  ipAddress String?
+  userAgent String?
+  
+  // Location Data
+  country   String?
+  city      String?
+  region    String?
+  timezone  String?
+  
+  // Engagement Metrics
+  timeSpent Int      @default(0) // seconds spent on page
+  scrollDepth Float  @default(0) // percentage of page scrolled
+  bounced   Boolean  @default(true) // did user leave immediately
+  
+  // Referral Data
+  referrer  String?
+  source    String?  // organic, social, direct, email, etc.
+  medium    String?  // search, social, referral, etc.
+  campaign  String? // utm_campaign parameter
+  
+  viewedAt  DateTime @default(now())
+  
+  @@map("recipe_views")
+}
+
+model RecipeInteraction {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  visitorId String
+  type      String   // "like", "dislike", "share", "print", "save", "copy_ingredients", "copy_url"
+  value     String?  // additional data (e.g., social platform for shares)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ensure one interaction per visitor per type per recipe
+  @@unique([visitorId, recipeId, type])
+  @@map("recipe_interactions")
+}
+
+model RecipeComment {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  // Visitor Info
+  visitorId String
+  name      String   // Display name for the comment
+  email     String?  // Optional email (not displayed publicly)
+
+  // Comment Content
+  content   String   // The actual comment text
+  rating    Int?     // Optional 1-5 star rating
+
+  // Moderation
+  approved  Boolean  @default(false) // Comments need approval
+  flagged   Boolean  @default(false) // User reported comments
+
+  // Analytics
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("recipe_comments")
+}
+
+model RecipeRevenue {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  // Revenue Sources
+  source    String   // "affiliate", "ads", "premium", "cookbook", "course"
+  amount    Float    // revenue amount in cents
+  currency  String   @default("USD")
+  
+  // Attribution
+  visitorId String?
+  country   String?
+  
+  // Tracking
+  transactionId String?
+  platform     String? // "amazon", "google_ads", "direct", etc.
+  
+  createdAt DateTime @default(now())
+  
+  @@map("recipe_revenues")
+}
+
+model VisitorSession {
+  id        String   @id @default(cuid())
+  visitorId String   @unique
+  
+  // Device & Browser
+  device    String?  // mobile, desktop, tablet
+  browser   String?  // chrome, firefox, safari
+  os        String?  // windows, macos, ios, android
+  
+  // Location (from IP)
+  country   String?
+  city      String?
+  region    String?
+  latitude  Float?
+  longitude Float?
+  
+  // Session Data
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  pageViews Int      @default(0)
+  totalTime Int      @default(0) // total seconds spent on site
+  
+  @@map("visitor_sessions")
 }

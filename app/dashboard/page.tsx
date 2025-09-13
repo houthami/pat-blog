@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { 
   Plus, ChefHat, BookOpen, Clock, Eye, EyeOff, Search, Filter, Edit, Trash2, 
   TrendingUp, Calendar, BarChart3, Users, Globe, Heart, Star, MoreHorizontal,
-  Copy, ExternalLink
+  Copy, ExternalLink, PieChart
 } from "lucide-react"
 import Link from "next/link"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { RecipeAnalytics } from "@/components/recipe-analytics"
 
 interface Recipe {
   id: string
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [sortBy, setSortBy] = useState("newest")
+  const [selectedAnalyticsRecipe, setSelectedAnalyticsRecipe] = useState<{ id: string; title: string } | null>(null)
   const [stats, setStats] = useState<DashboardStats>({
     totalRecipes: 0,
     publishedRecipes: 0,
@@ -449,6 +451,11 @@ export default function DashboardPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => setSelectedAnalyticsRecipe({ id: recipe.id, title: recipe.title })}>
+                            <PieChart className="mr-2 h-4 w-4" />
+                            View Analytics
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => copyRecipeUrl(recipe.id)}>
                             <Copy className="mr-2 h-4 w-4" />
                             Copy URL
@@ -497,6 +504,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Analytics Modal */}
+      {selectedAnalyticsRecipe && (
+        <RecipeAnalytics
+          recipeId={selectedAnalyticsRecipe.id}
+          recipeTitle={selectedAnalyticsRecipe.title}
+          onClose={() => setSelectedAnalyticsRecipe(null)}
+        />
+      )}
     </DashboardLayout>
   )
 }

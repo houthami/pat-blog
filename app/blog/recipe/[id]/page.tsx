@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { ChefHat, Clock, User, ArrowLeft, Share2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { AnalyticsTracker } from "@/components/analytics-tracker"
 
 interface Recipe {
   id: string
@@ -56,6 +57,24 @@ export default function RecipeDetailPage() {
   }, [params.id])
 
   const handleShare = async () => {
+    // Track the share interaction
+    const trackShare = (method: string, success: boolean = true) => {
+      const visitorId = localStorage.getItem("visitor-id") || crypto.randomUUID()
+      localStorage.setItem("visitor-id", visitorId)
+
+      fetch("/api/analytics/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipeId: params.id,
+          visitorId,
+          type: "interaction",
+          interactionType: "share",
+          interactionValue: `${method}_${success ? "success" : "fallback"}`
+        })
+      }).catch(console.error)
+    }
+
     if (navigator.share && recipe) {
       try {
         await navigator.share({
@@ -63,13 +82,16 @@ export default function RecipeDetailPage() {
           text: recipe.description || "Check out this delicious recipe!",
           url: window.location.href
         })
+        trackShare("native_share", true)
       } catch (error) {
         // Fallback to copying to clipboard
         navigator.clipboard.writeText(window.location.href)
+        trackShare("native_share", false)
       }
     } else {
       // Fallback to copying to clipboard
       navigator.clipboard.writeText(window.location.href)
+      trackShare("clipboard", true)
     }
   }
 
@@ -114,6 +136,9 @@ export default function RecipeDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Analytics Tracker */}
+      <AnalyticsTracker recipeId={params.id as string} />
+      
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4">
