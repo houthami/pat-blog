@@ -1,7 +1,11 @@
 import { type NextAuthOptions } from "next-auth"
+import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
+import { prisma } from "./prisma"
+import { verifyPassword } from "./password"
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -10,36 +14,69 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log("[v0] Auth attempt for:", credentials?.email)
-
-        if (credentials?.email === "admin@pastry.com" && credentials?.password === "admin123") {
-          console.log("[v0] Auth successful")
-          return {
-            id: "1",
-            email: "admin@pastry.com",
-            name: "Admin User",
-          }
+        if (!credentials?.email || !credentials?.password) {
+          return null
         }
 
-        console.log("[v0] Auth failed")
-        return null
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email.toLowerCase() }
+          })
+
+          if (!user || !user.password) {
+            return null
+          }
+
+          const isValidPassword = await verifyPassword(credentials.password, user.password)
+
+          if (!isValidPassword) {
+            return null
+          }
+
+          // Update last login
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+          })
+
+          // Log successful login
+          await prisma.auditLog.create({
+            data: {
+              userId: user.id,
+              action: 'LOGIN',
+              success: true,
+              details: { method: 'credentials' }
+            }
+          })
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        } catch (error) {
+          console.error("Auth error:", error)
+          return null
+        }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Include user id in the token so it's available in session
+      // Include user data in the token
       if (user) {
         token.id = user.id
+        token.role = user.role
       }
       return token
     },
     async session({ session, token }) {
-      // Include user id in the session so it's available in API routes
+      // Include user data in the session
       if (token.id) {
         session.user.id = token.id as string
+        session.user.role = token.role
       }
-      console.log("[v0] Session callback:", session)
       return session
     },
   },

@@ -13,8 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ChefHat, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@pastry.com")
-  const [password, setPassword] = useState("admin123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
@@ -87,9 +87,14 @@ export default function LoginPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Button type="button" variant="outline" className="w-full mb-4 bg-transparent" onClick={testAPI}>
-              Test API Connection
-            </Button>
+            <div className="mb-4 p-3 bg-muted/50 rounded-md border">
+              <p className="text-sm font-medium mb-2">Test Credentials:</p>
+              <div className="text-xs space-y-1">
+                <div><strong>Admin:</strong> admin@pastry.com / Admin123!</div>
+                <div><strong>Editor:</strong> editor@pastry.com / Editor123!</div>
+                <div><strong>Viewer:</strong> viewer@pastry.com / Viewer123!</div>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">

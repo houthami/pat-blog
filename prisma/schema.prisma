@@ -11,16 +11,90 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  recipes   Recipe[]
-  
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?   // Made optional for OAuth users
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(VIEWER)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret String?
+  backupCodes   String?   // JSON array of backup codes
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  recipes       Recipe[]
+  accounts      Account[]
+  sessions      Session[]
+  auditLogs     AuditLog[]
+
   @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  ipAddress    String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // LOGIN, LOGOUT, PASSWORD_CHANGE, MFA_ENABLED, etc.
+  details   Json?    // Additional context
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
 }
 
 model Recipe {
