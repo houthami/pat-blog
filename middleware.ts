@@ -25,6 +25,27 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const ip = request.ip || request.headers.get('x-forwarded-for') || 'anonymous'
 
+  // SEO REDIRECTS: Consolidate duplicate recipe pages to /recipes
+  if (pathname === '/blog' || pathname.startsWith('/blog?')) {
+    const searchParams = request.nextUrl.searchParams
+    const newUrl = new URL('/recipes', request.url)
+    // Preserve search parameters
+    searchParams.forEach((value, key) => {
+      newUrl.searchParams.set(key, value)
+    })
+    return NextResponse.redirect(newUrl, { status: 301 })
+  }
+
+  if (pathname === '/feed' || pathname.startsWith('/feed?')) {
+    const searchParams = request.nextUrl.searchParams
+    const newUrl = new URL('/recipes', request.url)
+    // Preserve search parameters
+    searchParams.forEach((value, key) => {
+      newUrl.searchParams.set(key, value)
+    })
+    return NextResponse.redirect(newUrl, { status: 301 })
+  }
+
   // Apply rate limiting to API routes and auth endpoints
   if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
     const { success, limit, reset, remaining } = await ratelimit.limit(ip)
@@ -68,17 +89,17 @@ export async function middleware(request: NextRequest) {
     }
 
     if (token.role === "VIEWER") {
-      // VIEWER trying to access dashboard - redirect to feed with message
-      const feedUrl = new URL("/feed", request.url)
-      feedUrl.searchParams.set("message", "dashboard-access-denied")
-      return NextResponse.redirect(feedUrl)
+      // VIEWER trying to access dashboard - redirect to recipes with message
+      const recipesUrl = new URL("/recipes", request.url)
+      recipesUrl.searchParams.set("message", "dashboard-access-denied")
+      return NextResponse.redirect(recipesUrl)
     }
 
     // Only ADMIN and EDITOR can access dashboard
     if (!["ADMIN", "EDITOR"].includes(token.role as string)) {
-      const feedUrl = new URL("/feed", request.url)
-      feedUrl.searchParams.set("message", "insufficient-permissions")
-      return NextResponse.redirect(feedUrl)
+      const recipesUrl = new URL("/recipes", request.url)
+      recipesUrl.searchParams.set("message", "insufficient-permissions")
+      return NextResponse.redirect(recipesUrl)
     }
   }
 
@@ -155,9 +176,9 @@ export async function middleware(request: NextRequest) {
         const dashboardUrl = new URL("/dashboard", request.url)
         return NextResponse.redirect(dashboardUrl)
       } else {
-        // VIEWER goes to feed to browse recipes
-        const feedUrl = new URL("/feed", request.url)
-        return NextResponse.redirect(feedUrl)
+        // VIEWER goes to recipes to browse recipes
+        const recipesUrl = new URL("/recipes", request.url)
+        return NextResponse.redirect(recipesUrl)
       }
     }
   }

@@ -18,7 +18,7 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "All Recipes", href: "/recipes", icon: BookOpen },
+  { name: "Recipe Management", href: "/recipes", icon: BookOpen },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

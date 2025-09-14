@@ -21,12 +21,14 @@ interface RecipeInteractionsProps {
   recipeId: string
   userRole?: string
   isAuthenticated: boolean
+  onAnonymousSave?: () => void
 }
 
 export function RecipeInteractions({
   recipeId,
   userRole,
-  isAuthenticated
+  isAuthenticated,
+  onAnonymousSave
 }: RecipeInteractionsProps) {
   const [interactions, setInteractions] = useState<InteractionData | null>(null)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
@@ -132,10 +134,16 @@ export function RecipeInteractions({
                 ? 'text-red-600 bg-red-50 border-red-200'
                 : ''
             }`}
-            onClick={() => handleInteraction('like')}
+            onClick={() => {
+              if (!isAuthenticated && onAnonymousSave) {
+                onAnonymousSave()
+              } else {
+                handleInteraction('like')
+              }
+            }}
           >
             <ThumbsUp className="mr-3 h-4 w-4" />
-            Like Recipe
+            {!isAuthenticated ? 'Like Recipe (Sign Up)' : 'Like Recipe'}
             {interactions && (
               <span className="ml-auto text-sm">
                 {interactions.counts.likes}
@@ -169,11 +177,22 @@ export function RecipeInteractions({
               interactions?.userInteractions?.includes('save')
                 ? 'text-green-600 bg-green-50 border-green-200'
                 : ''
-            }`}
-            onClick={() => handleInteraction('save')}
+            } ${!isAuthenticated ? 'bg-primary/5 border-primary/20 text-primary font-medium' : ''}`}
+            onClick={() => {
+              if (!isAuthenticated && onAnonymousSave) {
+                onAnonymousSave()
+              } else {
+                handleInteraction('save')
+              }
+            }}
           >
             <BookmarkPlus className="mr-3 h-4 w-4" />
-            {interactions?.userInteractions?.includes('save') ? 'Saved' : 'Save Recipe'}
+            {!isAuthenticated
+              ? 'Save Recipe (Sign Up)'
+              : interactions?.userInteractions?.includes('save')
+                ? 'Saved'
+                : 'Save Recipe'
+            }
             {interactions && (
               <span className="ml-auto text-sm">
                 {interactions.counts.saves}

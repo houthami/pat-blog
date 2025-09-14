@@ -52,7 +52,7 @@ export default function VisitorWelcomePage() {
   }
 
   const handleBrowseRecipes = () => {
-    router.push("/blog")
+    router.push("/recipes")
   }
 
   return (

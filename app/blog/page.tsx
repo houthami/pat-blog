@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { RecipeCardSkeleton, PageLoading } from "@/components/ui/loading-states"
 import { ErrorState, NetworkError } from "@/components/ui/error-states"
-import { ChefHat, Clock, Search, User } from "lucide-react"
+import { ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, BookmarkPlus } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { useSession } from "next-auth/react"
+import { AnonymousUserBanner } from "@/components/anonymous/progressive-registration"
 
 interface Recipe {
   id: string
@@ -20,6 +22,12 @@ interface Recipe {
   author: {
     name: string | null
   }
+  _count?: {
+    interactions: number
+    views: number
+    comments: number
+  }
+  averageRating?: number
 }
 
 interface ApiResponse {
@@ -35,11 +43,14 @@ interface ApiResponse {
 }
 
 export default function BlogPage() {
+  const { data: session } = useSession()
   const [data, setData] = useState<ApiResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+
+  const isAnonymous = !session?.user
 
   const fetchRecipes = async (page = 1, search = "") => {
     setIsLoading(true)
@@ -78,6 +89,9 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Anonymous User Banner */}
+      {isAnonymous && <AnonymousUserBanner />}
+
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-6">
@@ -177,14 +191,45 @@ export default function BlogPage() {
                           {recipe.description}
                         </CardDescription>
                       )}
-                      <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
-                        <div className="flex items-center">
-                          <User className="mr-1 h-3 w-3" />
-                          {recipe.author.name || "Admin"}
+                      <div className="space-y-2 pt-2">
+                        {/* Social Proof Metrics */}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          {recipe._count?.interactions ? (
+                            <div className="flex items-center">
+                              <Heart className="mr-1 h-3 w-3 text-red-500" />
+                              {recipe._count.interactions}
+                            </div>
+                          ) : null}
+                          {recipe._count?.comments ? (
+                            <div className="flex items-center">
+                              <MessageCircle className="mr-1 h-3 w-3 text-blue-500" />
+                              {recipe._count.comments}
+                            </div>
+                          ) : null}
+                          {recipe._count?.views ? (
+                            <div className="flex items-center">
+                              <Eye className="mr-1 h-3 w-3" />
+                              {recipe._count.views}
+                            </div>
+                          ) : null}
+                          {recipe.averageRating ? (
+                            <div className="flex items-center">
+                              <Star className="mr-1 h-3 w-3 text-yellow-500 fill-current" />
+                              {recipe.averageRating.toFixed(1)}
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="flex items-center">
-                          <Clock className="mr-1 h-3 w-3" />
-                          {new Date(recipe.createdAt).toLocaleDateString()}
+
+                        {/* Author and Date */}
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <div className="flex items-center">
+                            <User className="mr-1 h-3 w-3" />
+                            {recipe.author.name || "Admin"}
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="mr-1 h-3 w-3" />
+                            {new Date(recipe.createdAt).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                     </CardHeader>

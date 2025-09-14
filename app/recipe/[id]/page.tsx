@@ -26,6 +26,7 @@ import { BasicAffiliateLinks } from "@/components/advanced/basic-affiliate-links
 import { PremiumUpgrade } from "@/components/monetization/premium-upgrade"
 import { BannerAd, SidebarAd, ContentAd } from "@/components/monetization/ad-manager"
 import { SponsoredContent } from "@/components/monetization/sponsored-content"
+import { SaveRecipePrompt } from "@/components/anonymous/progressive-registration"
 
 interface Recipe {
   id: string
@@ -59,6 +60,7 @@ export default function UnifiedRecipePage() {
   const [upgradeFeature, setUpgradeFeature] = useState("")
   const [scaledRecipe, setScaledRecipe] = useState<Recipe | null>(null)
   const [activeTab, setActiveTab] = useState<"recipe" | "scaling" | "shopping" | "affiliate">("recipe")
+  const [showSavePrompt, setShowSavePrompt] = useState(false)
 
   // Determine user context and navigation
   const isAuthenticated = !!session
@@ -71,11 +73,10 @@ export default function UnifiedRecipePage() {
   const getBackUrl = () => {
     if (typeof window !== 'undefined') {
       const referrer = document.referrer
-      if (referrer.includes('/feed')) return '/feed'
-      if (referrer.includes('/blog')) return '/blog'
+      if (referrer.includes('/recipes')) return '/recipes'
       if (referrer.includes('/dashboard')) return '/dashboard'
     }
-    return isAuthenticated ? '/feed' : '/blog'
+    return '/recipes'
   }
 
   useEffect(() => {
@@ -349,6 +350,7 @@ export default function UnifiedRecipePage() {
                       recipeId={recipe.id}
                       userRole={userRole}
                       isAuthenticated={isAuthenticated}
+                      onAnonymousSave={() => setShowSavePrompt(true)}
                     />
                   </div>
                 </div>
@@ -446,6 +448,16 @@ export default function UnifiedRecipePage() {
           setShowPremiumUpgrade(false)
         }}
       />
+
+      {/* Anonymous User Save Recipe Prompt */}
+      {isPublicUser && (
+        <SaveRecipePrompt
+          recipeId={recipe?.id}
+          recipeTitle={recipe?.title}
+          isOpen={showSavePrompt}
+          onClose={() => setShowSavePrompt(false)}
+        />
+      )}
     </div>
   )
 }
