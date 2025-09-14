@@ -97,19 +97,28 @@ enum UserRole {
   VIEWER
 }
 
+enum RecipeStatus {
+  DRAFT       // Editors create as draft, only author can see
+  PUBLISHED   // Live on the site, everyone can see
+  SUSPENDED   // Hidden from public, only admin can see
+}
+
 model Recipe {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   description String?
-  ingredients String   // JSON string of ingredients array
-  instructions String  // JSON string of instructions array
+  ingredients String      // JSON string of ingredients array
+  instructions String     // JSON string of instructions array
   imageUrl    String?
-  published   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  status      RecipeStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  publishedAt DateTime?   // When recipe was published
+  suspendedAt DateTime?   // When recipe was suspended
+  suspendedBy String?     // User ID who suspended it
+
   authorId    String
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   
   // Analytics relationships
   views       RecipeView[]

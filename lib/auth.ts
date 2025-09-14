@@ -5,7 +5,8 @@ import { prisma } from "./prisma"
 import { verifyPassword } from "./password"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Note: Don't use PrismaAdapter with CredentialsProvider
+  // adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -14,7 +15,10 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log('[AUTH] Login attempt for:', credentials?.email)
+
         if (!credentials?.email || !credentials?.password) {
+          console.log('[AUTH] Missing credentials')
           return null
         }
 
@@ -24,14 +28,18 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (!user || !user.password) {
+            console.log('[AUTH] User not found or no password:', !!user)
             return null
           }
 
           const isValidPassword = await verifyPassword(credentials.password, user.password)
 
           if (!isValidPassword) {
+            console.log('[AUTH] Invalid password')
             return null
           }
+
+          console.log('[AUTH] Login successful for:', user.email)
 
           // Update last login
           await prisma.user.update({
@@ -87,5 +95,5 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET || "dev-secret-key",
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
 }

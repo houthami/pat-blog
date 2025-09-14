@@ -67,8 +67,39 @@ export async function PATCH(
     // Only update fields that are provided
     if (body.title !== undefined) updates.title = body.title.trim()
     if (body.description !== undefined) updates.description = body.description?.trim() || null
-    if (body.published !== undefined) updates.published = Boolean(body.published)
     if (body.imageUrl !== undefined) updates.imageUrl = body.imageUrl || null
+
+    // Handle status updates with role-based permissions
+    if (body.status !== undefined) {
+      const validStatuses = ['DRAFT', 'PUBLISHED', 'SUSPENDED']
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+      }
+
+      // Role-based status change permissions
+      if (user.role === 'ADMIN') {
+        // ADMIN can set any status
+        updates.status = body.status
+      } else if (user.role === 'EDITOR') {
+        // EDITOR can only set to DRAFT or SUSPENDED, not PUBLISHED
+        if (body.status === 'PUBLISHED') {
+          return NextResponse.json({ error: "Editors cannot publish recipes" }, { status: 403 })
+        }
+        updates.status = body.status
+      } else {
+        return NextResponse.json({ error: "Insufficient permissions to change status" }, { status: 403 })
+      }
+    }
+
+    // Legacy published field support (convert to status)
+    if (body.published !== undefined) {
+      if (user.role === 'ADMIN') {
+        updates.status = body.published ? 'PUBLISHED' : 'DRAFT'
+      } else if (user.role === 'EDITOR') {
+        // EDITOR cannot publish, only create drafts
+        updates.status = 'DRAFT'
+      }
+    }
 
     // Handle ingredients and instructions if provided
     if (body.ingredients !== undefined) {

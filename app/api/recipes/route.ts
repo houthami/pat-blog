@@ -31,8 +31,9 @@ export async function GET() {
         id: true,
         title: true,
         description: true,
-        published: true,
+        status: true,
         createdAt: true,
+        updatedAt: true,
         imageUrl: true,
       },
     })
@@ -83,6 +84,15 @@ export async function POST(request: Request) {
 
     console.log("Using existing user:", user.id, user.email)
 
+    // Determine status based on user role and publish intent
+    let status = 'DRAFT' // Default to DRAFT
+
+    if (published && user.role === 'ADMIN') {
+      status = 'PUBLISHED' // ADMIN can publish directly
+    } else if (published && user.role === 'EDITOR') {
+      status = 'DRAFT' // EDITOR creates as draft even if they want to publish
+    }
+
     const recipe = await prisma.recipe.create({
       data: {
         title: title.trim(),
@@ -90,7 +100,7 @@ export async function POST(request: Request) {
         ingredients: JSON.stringify(ingredientsArray),
         instructions: JSON.stringify(instructionsArray),
         imageUrl: imageUrl || null,
-        published: Boolean(published),
+        status: status,
         authorId: user.id,
       },
     })

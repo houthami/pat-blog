@@ -46,7 +46,9 @@ export default function LoginPage() {
         setError("Invalid email or password")
       } else if (result?.ok) {
         console.log("[v0] Login successful, redirecting...")
-        router.push("/dashboard")
+        // Let middleware handle role-based redirects
+        // Force page reload to trigger middleware redirect logic
+        window.location.href = "/"
       } else {
         console.log("[v0] Unexpected result:", result)
         setError("Login failed - unexpected response")
@@ -93,6 +95,7 @@ export default function LoginPage() {
                 <div><strong>Admin:</strong> admin@pastry.com / Admin123!</div>
                 <div><strong>Editor:</strong> editor@pastry.com / Editor123!</div>
                 <div><strong>Viewer:</strong> viewer@pastry.com / Viewer123!</div>
+                <div><strong>Member:</strong> member@pastry.com / Member123!</div>
               </div>
             </div>
 

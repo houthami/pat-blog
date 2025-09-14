@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { type, visitorId, value } = await request.json()
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Get user from session
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email || '' }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { type, value } = await request.json()
     const recipeId = params.id
+    const visitorId = user.id
 
     // Validate interaction type
     const validTypes = ['like', 'dislike', 'share', 'print', 'save', 'copy_ingredients', 'copy_url']
@@ -113,8 +129,22 @@ export async function GET(
 ) {
   try {
     const recipeId = params.id
-    const url = new URL(request.url)
-    const visitorId = url.searchParams.get('visitorId')
+    console.log('Fetching interactions for recipe:', recipeId)
+
+    // Get session (optional for GET - we show counts even for non-authenticated users)
+    const session = await getServerSession(authOptions)
+
+    // Get user if authenticated
+    let visitorId = null
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email }
+      })
+      visitorId = user?.id || null
+      console.log('Authenticated user:', visitorId)
+    } else {
+      console.log('No authenticated user')
+    }
 
     // Get interaction counts
     const interactionCounts = await prisma.recipeInteraction.groupBy({

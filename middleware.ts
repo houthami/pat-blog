@@ -45,11 +45,48 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RateLimit-Reset', new Date(reset).toISOString())
   }
 
-  // Check if the path requires authentication
-  const protectedPaths = ["/dashboard", "/recipes", "/admin"]
+  // Public paths that visitors can access without authentication
+  const publicPaths = ["/", "/blog", "/recipes/view", "/about", "/contact"]
+  const isPublicPath = publicPaths.some((path) => pathname.startsWith(path) || pathname === path)
+
+  // Paths that require authentication
+  const protectedPaths = ["/dashboard", "/recipes/create", "/recipes/edit", "/admin", "/profile", "/analytics"]
   const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
 
-  if (isProtectedPath) {
+  // Dashboard access control - VIEWER should not access dashboard
+  if (pathname.startsWith("/dashboard")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+
+    if (!token) {
+      // Not authenticated - redirect to login
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    if (token.role === "VIEWER") {
+      // VIEWER trying to access dashboard - redirect to feed with message
+      const feedUrl = new URL("/feed", request.url)
+      feedUrl.searchParams.set("message", "dashboard-access-denied")
+      return NextResponse.redirect(feedUrl)
+    }
+
+    // Only ADMIN and EDITOR can access dashboard
+    if (!["ADMIN", "EDITOR"].includes(token.role as string)) {
+      const feedUrl = new URL("/feed", request.url)
+      feedUrl.searchParams.set("message", "insufficient-permissions")
+      return NextResponse.redirect(feedUrl)
+    }
+  }
+
+  // Visitor interaction paths (require sign-in for actions)
+  const visitorInteractionPaths = ["/api/recipes/like", "/api/recipes/comment", "/api/recipes/save"]
+  const isVisitorInteractionPath = visitorInteractionPaths.some((path) => pathname.startsWith(path))
+
+  if (isProtectedPath || isVisitorInteractionPath) {
     // Get the token from the request
     const token = await getToken({
       req: request,
@@ -58,17 +95,53 @@ export async function middleware(request: NextRequest) {
 
     // If no token exists, redirect to login
     if (!token) {
+      // For API routes, return 401 instead of redirect
+      if (pathname.startsWith('/api/')) {
+        return new NextResponse(
+          JSON.stringify({
+            error: 'Authentication required',
+            message: 'Please sign in to perform this action'
+          }),
+          {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
       const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
       return NextResponse.redirect(loginUrl)
     }
 
-    // Role-based access control for admin routes
+    // All authenticated users can access basic features
+    // Role-specific restrictions are handled below
+
+    // Role-based access control
     if (pathname.startsWith("/admin") && token.role !== "ADMIN") {
-      return new NextResponse('Forbidden', { status: 403 })
+      return new NextResponse('Forbidden - Admin access required', { status: 403 })
     }
+
+    // Analytics access - Admin and Editor only
+    if (pathname.startsWith("/analytics") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+      return new NextResponse('Forbidden - Editor or Admin access required', { status: 403 })
+    }
+
+    // Recipe creation - Admin and Editor only (Editor creates as draft)
+    if (pathname.startsWith("/recipes/create") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+      return new NextResponse('Forbidden - Content creator access required', { status: 403 })
+    }
+
+    // Recipe editing - Admin and Editor only (with ownership rules)
+    if (pathname.startsWith("/recipes/edit") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+      return new NextResponse('Forbidden - Content creator access required', { status: 403 })
+    }
+
+    // Dashboard access - All authenticated users can see their dashboard
+    // But different content based on role
   }
 
-  // If user is logged in and tries to access login page, redirect to dashboard
+  // If user is logged in and tries to access login page, redirect based on role
   if (pathname === "/login") {
     const token = await getToken({
       req: request,
@@ -76,8 +149,16 @@ export async function middleware(request: NextRequest) {
     })
 
     if (token) {
-      const dashboardUrl = new URL("/dashboard", request.url)
-      return NextResponse.redirect(dashboardUrl)
+      // Role-based redirects after login
+      if (token.role === "ADMIN" || token.role === "EDITOR") {
+        // Admin and Editor go to dashboard for content management
+        const dashboardUrl = new URL("/dashboard", request.url)
+        return NextResponse.redirect(dashboardUrl)
+      } else {
+        // VIEWER goes to feed to browse recipes
+        const feedUrl = new URL("/feed", request.url)
+        return NextResponse.redirect(feedUrl)
+      }
     }
   }
 

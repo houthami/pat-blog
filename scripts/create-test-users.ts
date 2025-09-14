@@ -62,12 +62,33 @@ async function createTestUsers() {
     })
     console.log('✅ Created test user:', testUser.email)
 
+    // Remove old visitor user if exists and recreate as viewer
+    try {
+      await prisma.user.delete({
+        where: { email: 'visitor@pastry.com' }
+      })
+    } catch (error) {
+      // User doesn't exist, that's fine
+    }
+
+    // Create new viewer user (was previously visitor)
+    const newViewerUser = await prisma.user.create({
+      data: {
+        email: 'member@pastry.com',
+        password: await hashPassword('Member123!'),
+        name: 'Member User',
+        role: 'VIEWER',
+      },
+    })
+    console.log('✅ Created member user:', newViewerUser.email)
+
     console.log('\n🎉 Test users created successfully!')
     console.log('\nLogin credentials:')
     console.log('👑 Admin: admin@pastry.com / Admin123!')
     console.log('✏️  Editor: editor@pastry.com / Editor123!')
     console.log('👁️  Viewer: viewer@pastry.com / Viewer123!')
     console.log('🧪 Test: test@pastry.com / TestPassword123!')
+    console.log('👤 Member: member@pastry.com / Member123!')
 
   } catch (error) {
     console.error('❌ Error creating test users:', error)

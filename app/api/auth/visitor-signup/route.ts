@@ -1,32 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { hashPassword, validatePasswordStrength } from '@/lib/password'
+import { hashPassword } from '@/lib/password'
 
-const registerSchema = z.object({
+const visitorSignupSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-
-    // Validate input
-    const validatedData = registerSchema.parse(body)
-
-    // Check password strength
-    const passwordValidation = validatePasswordStrength(validatedData.password)
-    if (!passwordValidation.isValid) {
-      return NextResponse.json(
-        {
-          error: 'Password does not meet requirements',
-          details: passwordValidation.errors
-        },
-        { status: 400 }
-      )
-    }
+    const validatedData = visitorSignupSchema.parse(body)
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -43,13 +29,13 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password)
 
-    // Create user
+    // Create visitor user (can be upgraded later)
     const user = await prisma.user.create({
       data: {
         email: validatedData.email.toLowerCase(),
         password: hashedPassword,
-        name: validatedData.name,
-        role: 'VIEWER', // Default role for new users
+        name: validatedData.name || 'Visitor',
+        role: 'VISITOR', // Start as visitor, can upgrade
       },
       select: {
         id: true,
@@ -64,7 +50,7 @@ export async function POST(request: NextRequest) {
     await prisma.auditLog.create({
       data: {
         userId: user.id,
-        action: 'REGISTER',
+        action: 'VISITOR_SIGNUP',
         success: true,
         details: { method: 'credentials' }
       }
@@ -72,14 +58,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        message: 'User created successfully',
-        user
+        message: 'Visitor account created successfully',
+        user,
+        note: 'You can upgrade to viewer status to interact with content'
       },
       { status: 201 }
     )
 
   } catch (error) {
-    console.error('Registration error:', error)
+    console.error('Visitor signup error:', error)
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

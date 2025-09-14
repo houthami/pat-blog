@@ -31,7 +31,7 @@ interface Recipe {
   id: string
   title: string
   description: string | null
-  published: boolean
+  status: 'DRAFT' | 'PUBLISHED' | 'SUSPENDED'
   createdAt: string
   updatedAt: string
   imageUrl: string | null
@@ -68,6 +68,8 @@ export default function DashboardPage() {
     fetchRecipes()
   }, [])
 
+  // Note: Dashboard access is now controlled server-side via middleware
+
   useEffect(() => {
     filterAndSortRecipes()
   }, [recipes, searchTerm, statusFilter, sortBy])
@@ -91,9 +93,9 @@ export default function DashboardPage() {
   const calculateStats = (recipeData: Recipe[]) => {
     const now = new Date()
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    
-    const published = recipeData.filter(r => r.published).length
-    const drafts = recipeData.filter(r => !r.published).length
+
+    const published = recipeData.filter(r => r.status === 'PUBLISHED').length
+    const drafts = recipeData.filter(r => r.status === 'DRAFT').length
     const thisWeek = recipeData.filter(r => new Date(r.createdAt) >= oneWeekAgo).length
     
     // Calculate average recipes per month
@@ -119,9 +121,9 @@ export default function DashboardPage() {
     let filtered = recipes.filter(recipe => {
       const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            recipe.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesStatus = statusFilter === "all" || 
-                           (statusFilter === "published" && recipe.published) ||
-                           (statusFilter === "draft" && !recipe.published)
+      const matchesStatus = statusFilter === "all" ||
+                           (statusFilter === "published" && recipe.status === 'PUBLISHED') ||
+                           (statusFilter === "draft" && recipe.status === 'DRAFT')
       return matchesSearch && matchesStatus
     })
 
@@ -144,19 +146,20 @@ export default function DashboardPage() {
     setFilteredRecipes(filtered)
   }
 
-  const togglePublishStatus = async (recipeId: string, currentStatus: boolean) => {
+  const togglePublishStatus = async (recipeId: string, currentStatus: 'DRAFT' | 'PUBLISHED' | 'SUSPENDED') => {
     try {
+      const newStatus = currentStatus === 'PUBLISHED' ? 'DRAFT' : 'PUBLISHED'
       const response = await fetch(`/api/recipes/${recipeId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ published: !currentStatus })
+        body: JSON.stringify({ status: newStatus })
       })
-      
+
       if (response.ok) {
-        setRecipes(prev => prev.map(recipe => 
-          recipe.id === recipeId ? { ...recipe, published: !currentStatus } : recipe
+        setRecipes(prev => prev.map(recipe =>
+          recipe.id === recipeId ? { ...recipe, status: newStatus } : recipe
         ))
-        toast.success(`Recipe ${!currentStatus ? 'published' : 'unpublished'} successfully`)
+        toast.success(`Recipe ${newStatus.toLowerCase()} successfully`)
       }
     } catch (error) {
       toast.error("Failed to update recipe status")
@@ -201,12 +204,15 @@ export default function DashboardPage() {
               {stats.mostRecentDate && `Last activity: ${stats.mostRecentDate}`}
             </p>
           </div>
-          <Button asChild className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white">
-            <Link href="/recipes/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Recipe
-            </Link>
-          </Button>
+          {/* Only show create button for ADMIN and EDITOR */}
+          {session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
+            <Button asChild className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white">
+              <Link href="/recipes/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Recipe
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Enhanced Stats Cards */}
@@ -270,39 +276,58 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Only ADMIN and EDITOR can create new recipes */}
+              {session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
+                <Button variant="outline" className="h-20 flex-col" asChild>
+                  <Link href="/recipes/new">
+                    <Plus className="h-6 w-6 mb-2" />
+                    New Recipe
+                  </Link>
+                </Button>
+              )}
+
               <Button variant="outline" className="h-20 flex-col" asChild>
-                <Link href="/recipes/new">
-                  <Plus className="h-6 w-6 mb-2" />
-                  New Recipe
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-20 flex-col" asChild>
-                <Link href="/blog">
+                <Link href="/feed">
                   <Globe className="h-6 w-6 mb-2" />
-                  View Blog
+                  View Feed
                 </Link>
               </Button>
+
               <Button variant="outline" className="h-20 flex-col" asChild>
                 <Link href="/recipes">
                   <Edit className="h-6 w-6 mb-2" />
                   Manage All
                 </Link>
               </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={() => {
-                  const drafts = recipes.filter(r => !r.published)
-                  if (drafts.length > 0) {
-                    toast.info(`You have ${drafts.length} draft${drafts.length > 1 ? 's' : ''} ready to publish`)
-                  } else {
-                    toast.success("All recipes are published!")
-                  }
-                }}
-              >
-                <Eye className="h-6 w-6 mb-2" />
-                Check Drafts
-              </Button>
+
+              {/* Show drafts checker only for content creators */}
+              {session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
+                <Button
+                  variant="outline"
+                  className="h-20 flex-col"
+                  onClick={() => {
+                    const drafts = recipes.filter(r => r.status === 'DRAFT')
+                    if (drafts.length > 0) {
+                      toast.info(`You have ${drafts.length} draft${drafts.length > 1 ? 's' : ''} ready to publish`)
+                    } else {
+                      toast.success("All recipes are published!")
+                    }
+                  }}
+                >
+                  <Eye className="h-6 w-6 mb-2" />
+                  Check Drafts
+                </Button>
+              )}
+
+              {/* Analytics for ADMIN/EDITOR only */}
+              {session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
+                <Button variant="outline" className="h-20 flex-col" asChild>
+                  <Link href="/analytics">
+                    <BarChart3 className="h-6 w-6 mb-2" />
+                    Analytics
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -374,7 +399,7 @@ export default function DashboardPage() {
                     ? "Try adjusting your search or filters" 
                     : "Create your first delicious recipe!"}
                 </p>
-                {!searchTerm && statusFilter === "all" && (
+                {!searchTerm && statusFilter === "all" && session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
                   <Button asChild>
                     <Link href="/recipes/new">
                       <Plus className="mr-2 h-4 w-4" />
@@ -406,8 +431,12 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-medium truncate">{recipe.title}</h3>
-                        <Badge variant={recipe.published ? "default" : "secondary"}>
-                          {recipe.published ? "Published" : "Draft"}
+                        <Badge variant={
+                          recipe.status === 'PUBLISHED' ? "default" :
+                          recipe.status === 'SUSPENDED' ? "destructive" : "secondary"
+                        }>
+                          {recipe.status === 'PUBLISHED' ? 'Published' :
+                           recipe.status === 'SUSPENDED' ? 'Suspended' : 'Draft'}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
@@ -427,22 +456,26 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     
-                    {/* Actions */}
+                    {/* Role-based Actions */}
                     <div className="flex items-center gap-2">
+                      {/* All authenticated users can edit */}
                       <Button variant="outline" size="sm" asChild>
                         <Link href={`/recipes/${recipe.id}/edit`}>
                           <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => togglePublishStatus(recipe.id, recipe.published)}
-                      >
-                        {recipe.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                      
+
+                      {/* Only ADMIN can publish/unpublish, EDITOR can only suspend */}
+                      {session?.user?.role === 'ADMIN' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => togglePublishStatus(recipe.id, recipe.status)}
+                        >
+                          {recipe.status === 'PUBLISHED' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      )}
+
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -451,11 +484,18 @@ export default function DashboardPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setSelectedAnalyticsRecipe({ id: recipe.id, title: recipe.title })}>
-                            <PieChart className="mr-2 h-4 w-4" />
-                            View Analytics
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+
+                          {/* Analytics for ADMIN/EDITOR only */}
+                          {session?.user?.role && ['ADMIN', 'EDITOR'].includes(session.user.role) && (
+                            <>
+                              <DropdownMenuItem onClick={() => setSelectedAnalyticsRecipe({ id: recipe.id, title: recipe.title })}>
+                                <PieChart className="mr-2 h-4 w-4" />
+                                View Analytics
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+
                           <DropdownMenuItem onClick={() => copyRecipeUrl(recipe.id)}>
                             <Copy className="mr-2 h-4 w-4" />
                             Copy URL
@@ -466,14 +506,20 @@ export default function DashboardPage() {
                               View on Blog
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => deleteRecipe(recipe.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
+
+                          {/* Only ADMIN can delete */}
+                          {session?.user?.role === 'ADMIN' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => deleteRecipe(recipe.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
