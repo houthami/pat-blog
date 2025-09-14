@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { RecipeCardSkeleton, PageLoading } from "@/components/ui/loading-states"
+import { ErrorState, NetworkError } from "@/components/ui/error-states"
 import { ChefHat, Clock, Search, User } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -35,25 +37,30 @@ interface ApiResponse {
 export default function BlogPage() {
   const [data, setData] = useState<ApiResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
 
   const fetchRecipes = async (page = 1, search = "") => {
     setIsLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "6",
         ...(search && { search })
       })
-      
+
       const response = await fetch(`/api/blog/recipes?${params}`)
       if (response.ok) {
         const result = await response.json()
         setData(result)
+      } else {
+        throw new Error(`Failed to fetch recipes: ${response.status}`)
       }
     } catch (error) {
       console.error("Failed to fetch recipes:", error)
+      setError(error instanceof Error ? error.message : "Failed to fetch recipes")
     } finally {
       setIsLoading(false)
     }
@@ -86,17 +93,19 @@ export default function BlogPage() {
             </div>
             
             {/* Search */}
-            <form onSubmit={handleSearch} className="flex gap-2 max-w-sm">
+            <form onSubmit={handleSearch} className="flex gap-2 max-w-sm" role="search" aria-label="Search recipes">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" aria-hidden="true" />
                 <Input
                   placeholder="Search recipes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
+                  aria-label="Search recipes by title or description"
+                  id="recipe-search"
                 />
               </div>
-              <Button type="submit">Search</Button>
+              <Button type="submit" aria-describedby="recipe-search">Search</Button>
             </form>
           </div>
         </div>
@@ -104,16 +113,12 @@ export default function BlogPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {isLoading ? (
+        {error ? (
+          <NetworkError onRetry={() => fetchRecipes(currentPage, searchTerm)} />
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="h-48 bg-muted rounded-t-lg" />
-                <CardHeader>
-                  <div className="h-4 bg-muted rounded w-3/4" />
-                  <div className="h-3 bg-muted rounded w-1/2" />
-                </CardHeader>
-              </Card>
+              <RecipeCardSkeleton key={i} />
             ))}
           </div>
         ) : !data?.recipes.length ? (
@@ -140,22 +145,26 @@ export default function BlogPage() {
             </div>
 
             {/* Recipe Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" role="main" aria-label="Recipe collection">
               {data.recipes.map((recipe) => (
                 <Card key={recipe.id} className="group hover:shadow-lg transition-shadow">
-                  <Link href={`/blog/recipe/${recipe.id}`}>
+                  <Link
+                    href={`/recipe/${recipe.id}`}
+                    aria-label={`View recipe: ${recipe.title}`}
+                    className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
+                  >
                     <div className="aspect-video bg-muted rounded-t-lg overflow-hidden">
                       {recipe.imageUrl ? (
                         <Image
                           src={recipe.imageUrl}
-                          alt={recipe.title}
+                          alt={`Photo of ${recipe.title}`}
                           width={400}
                           height={300}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ChefHat className="h-12 w-12 text-muted-foreground" />
+                          <ChefHat className="h-12 w-12 text-muted-foreground" aria-label="Recipe placeholder image" />
                         </div>
                       )}
                     </div>
@@ -186,25 +195,27 @@ export default function BlogPage() {
 
             {/* Pagination */}
             {data.pagination.pages > 1 && (
-              <div className="flex justify-center gap-2">
+              <nav className="flex justify-center gap-2" role="navigation" aria-label="Recipe pagination">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={!data.pagination.hasPrev}
+                  aria-label={`Go to previous page (${currentPage - 1})`}
                 >
                   Previous
                 </Button>
-                <span className="flex items-center px-4 text-sm text-muted-foreground">
+                <span className="flex items-center px-4 text-sm text-muted-foreground" aria-live="polite">
                   Page {currentPage} of {data.pagination.pages}
                 </span>
                 <Button
                   variant="outline"
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={!data.pagination.hasNext}
+                  aria-label={`Go to next page (${currentPage + 1})`}
                 >
                   Next
                 </Button>
-              </div>
+              </nav>
             )}
           </>
         )}

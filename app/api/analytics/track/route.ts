@@ -114,9 +114,20 @@ export async function POST(request: Request) {
         }
       })
     } else if (data.type === "interaction") {
-      // Track recipe interaction
-      const interaction = await prisma.recipeInteraction.create({
-        data: {
+      // Track recipe interaction using upsert to handle unique constraint
+      const interaction = await prisma.recipeInteraction.upsert({
+        where: {
+          visitorId_recipeId_type: {
+            visitorId: data.visitorId,
+            recipeId: data.recipeId,
+            type: data.interactionType || "unknown"
+          }
+        },
+        update: {
+          value: data.interactionValue,
+          updatedAt: new Date()
+        },
+        create: {
           recipeId: data.recipeId,
           visitorId: data.visitorId,
           type: data.interactionType || "unknown",

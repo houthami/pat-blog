@@ -31,6 +31,11 @@ model User {
   sessions      Session[]
   auditLogs     AuditLog[]
 
+  // Advanced feature relationships
+  shoppingLists     ShoppingList[]
+  mealPlans         MealPlan[]
+  recipeCollections RecipeCollection[]
+
   @@map("users")
 }
 
@@ -111,6 +116,15 @@ model Recipe {
   instructions String     // JSON string of instructions array
   imageUrl    String?
   status      RecipeStatus @default(DRAFT)
+
+  // Recipe metadata
+  servings    Int?        // Number of servings
+  prepTime    Int?        // Prep time in minutes
+  cookTime    Int?        // Cook time in minutes
+  difficulty  String?     // "easy", "medium", "hard"
+  cuisine     String?     // "italian", "mexican", "asian", etc.
+  mealType    String[]    // ["breakfast", "lunch", "dinner", "snack", "dessert"]
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   publishedAt DateTime?   // When recipe was published
@@ -119,13 +133,29 @@ model Recipe {
 
   authorId    String
   author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
+
   // Analytics relationships
   views       RecipeView[]
   interactions RecipeInteraction[]
   revenues    RecipeRevenue[]
   comments    RecipeComment[]
-  
+
+  // Advanced feature relationships
+  shoppingListItems ShoppingListItem[]
+  shoppingLists     ShoppingList[]   @relation("RecipeShoppingLists")
+  affiliateLinks    AffiliateLink[]  @relation("RecipeAffiliateLinks")
+
+  // Meal planning relationships
+  breakfastMeals    MealPlanDay[]    @relation("BreakfastMeals")
+  lunchMeals        MealPlanDay[]    @relation("LunchMeals")
+  dinnerMeals       MealPlanDay[]    @relation("DinnerMeals")
+  snackMeals        MealPlanDay[]    @relation("SnackMeals")
+
+  // Collections and scaling
+  collections       RecipeCollection[] @relation("CollectionRecipes")
+  nutrition         RecipeNutrition?
+  scalings          RecipeScaling[]
+
   @@map("recipes")
 }
 
@@ -232,24 +262,266 @@ model RecipeRevenue {
 model VisitorSession {
   id        String   @id @default(cuid())
   visitorId String   @unique
-  
+
   // Device & Browser
   device    String?  // mobile, desktop, tablet
   browser   String?  // chrome, firefox, safari
   os        String?  // windows, macos, ios, android
-  
+
   // Location (from IP)
   country   String?
   city      String?
   region    String?
   latitude  Float?
   longitude Float?
-  
+
   // Session Data
   firstSeen DateTime @default(now())
   lastSeen  DateTime @default(now())
   pageViews Int      @default(0)
   totalTime Int      @default(0) // total seconds spent on site
-  
+
   @@map("visitor_sessions")
+}
+
+// Advanced Features Models
+
+model ShoppingList {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String?  // Optional - can be anonymous
+  visitorId String?  // For anonymous users
+
+  // Shopping list data
+  items     ShoppingListItem[]
+  totalCost Float?   @default(0)
+  store     String?  // Target store for shopping
+
+  // Recipe association
+  recipes   Recipe[] @relation("RecipeShoppingLists")
+
+  // Metadata
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("shopping_lists")
+}
+
+model ShoppingListItem {
+  id             String      @id @default(cuid())
+  shoppingListId String
+  shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+
+  // Item details
+  ingredient     String
+  amount         String
+  unit           String?
+  category       String      @default("other") // produce, meat, dairy, pantry, etc.
+
+  // Shopping data
+  price          Float?
+  currency       String      @default("USD")
+  checked        Boolean     @default(false)
+
+  // Affiliate & Store data
+  affiliateLink  AffiliateLink? @relation(fields: [affiliateLinkId], references: [id])
+  affiliateLinkId String?
+
+  // Recipe association
+  recipeId       String?
+  recipe         Recipe?     @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@map("shopping_list_items")
+}
+
+model AffiliateLink {
+  id          String   @id @default(cuid())
+
+  // Product info
+  productName String
+  productId   String?  // External product ID
+  imageUrl    String?
+
+  // Affiliate data
+  affiliateUrl String
+  provider     String   // "amazon", "instacart", "williams-sonoma", etc.
+  commission   Float?   // Commission rate (0.04 = 4%)
+
+  // Tracking
+  clickCount   Int      @default(0)
+  conversionCount Int   @default(0)
+  revenue      Float    @default(0)
+
+  // Category & targeting
+  categories   String[] // ["kitchen-tools", "ingredients", "cookbooks"]
+  keywords     String[] // For matching ingredients
+
+  // Recipe associations
+  recipes      Recipe[] @relation("RecipeAffiliateLinks")
+  shoppingItems ShoppingListItem[]
+
+  // Status
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([provider, isActive])
+  @@map("affiliate_links")
+}
+
+model MealPlan {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Plan details
+  weekStart DateTime // Start of the week for this plan
+  weekEnd   DateTime
+  servings  Int      @default(4)
+
+  // Meals
+  meals     MealPlanDay[]
+
+  // Shopping & nutrition
+  shoppingList ShoppingList? @relation(fields: [shoppingListId], references: [id])
+  shoppingListId String?
+  totalCost    Float?
+  totalCalories Int?
+
+  // Metadata
+  isTemplate   Boolean  @default(false)
+  isPublic     Boolean  @default(false)
+  tags         String[] // ["vegetarian", "budget-friendly", "quick"]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("meal_plans")
+}
+
+model MealPlanDay {
+  id         String   @id @default(cuid())
+  mealPlanId String
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+
+  // Day info
+  dayOfWeek  Int      // 0 = Sunday, 1 = Monday, etc.
+  date       DateTime
+
+  // Meals
+  breakfast  Recipe?  @relation("BreakfastMeals", fields: [breakfastId], references: [id])
+  breakfastId String?
+
+  lunch      Recipe?  @relation("LunchMeals", fields: [lunchId], references: [id])
+  lunchId    String?
+
+  dinner     Recipe?  @relation("DinnerMeals", fields: [dinnerId], references: [id])
+  dinnerId   String?
+
+  snacks     Recipe[] @relation("SnackMeals")
+
+  // Nutrition summary for the day
+  totalCalories Int?
+  totalCost     Float?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("meal_plan_days")
+}
+
+model RecipeCollection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+
+  // Creator
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Collection data
+  recipes     Recipe[] @relation("CollectionRecipes")
+
+  // Metadata
+  isPublic    Boolean  @default(false)
+  isPremium   Boolean  @default(false)
+  price       Float?   // If selling the collection
+
+  // Analytics
+  viewCount   Int      @default(0)
+  saveCount   Int      @default(0)
+
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("recipe_collections")
+}
+
+model RecipeNutrition {
+  id        String @id @default(cuid())
+  recipeId  String @unique
+  recipe    Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  // Per serving nutrition
+  servingSize   String?  // "1 cup", "1 slice", etc.
+  calories      Int?
+  protein       Float?   // grams
+  carbs         Float?   // grams
+  fat           Float?   // grams
+  fiber         Float?   // grams
+  sugar         Float?   // grams
+  sodium        Float?   // mg
+
+  // Vitamins & minerals (optional)
+  vitaminA      Float?   // mcg
+  vitaminC      Float?   // mg
+  calcium       Float?   // mg
+  iron          Float?   // mg
+
+  // Dietary info
+  isVegetarian  Boolean  @default(false)
+  isVegan       Boolean  @default(false)
+  isGlutenFree  Boolean  @default(false)
+  isDairyFree   Boolean  @default(false)
+  isKeto        Boolean  @default(false)
+  isPaleo       Boolean  @default(false)
+
+  // Data source
+  dataSource    String?  // "manual", "spoonacular", "usda", etc.
+  lastUpdated   DateTime @updatedAt
+
+  @@map("recipe_nutrition")
+}
+
+model RecipeScaling {
+  id                String @id @default(cuid())
+  recipeId          String
+  recipe            Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  originalServings  Int
+  targetServings    Int
+  scaleFactor       Float
+
+  // Scaled ingredients (JSON)
+  scaledIngredients Json   // Scaled ingredient amounts
+  scaledInstructions Json? // Optional scaled cooking times
+
+  // User association
+  userId            String?
+  visitorId         String?
+
+  createdAt         DateTime @default(now())
+
+  @@map("recipe_scalings")
 }

@@ -184,7 +184,7 @@ export default function DashboardPage() {
   }
 
   const copyRecipeUrl = (recipeId: string) => {
-    const url = `${window.location.origin}/blog/recipe/${recipeId}`
+    const url = `${window.location.origin}/recipe/${recipeId}`
     navigator.clipboard.writeText(url)
     toast.success("Recipe URL copied to clipboard")
   }
@@ -501,7 +501,7 @@ export default function DashboardPage() {
                             Copy URL
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/blog/recipe/${recipe.id}`} target="_blank">
+                            <Link href={`/recipe/${recipe.id}`} target="_blank">
                               <ExternalLink className="mr-2 h-4 w-4" />
                               View on Blog
                             </Link>

@@ -10,6 +10,7 @@ import { ChefHat, Home, BookOpen, Settings, LogOut, Menu, Plus } from "lucide-re
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { UserOnboarding } from "@/components/onboarding/user-onboarding"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -39,7 +40,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <span className="font-semibold text-lg">Pastry Blog</span>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 space-y-2" role="navigation" aria-label="Main navigation">
         {navigation.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
@@ -48,24 +49,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-accent-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/50",
               )}
               onClick={() => mobile && setSidebarOpen(false)}
+              aria-current={isActive ? "page" : undefined}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4" aria-hidden="true" />
               {item.name}
             </Link>
           )
         })}
         <Link
           href="/recipes/new"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           onClick={() => mobile && setSidebarOpen(false)}
+          aria-label="Create new recipe"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" aria-hidden="true" />
           New Recipe
         </Link>
       </nav>
@@ -95,6 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      <UserOnboarding />
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-sidebar border-r border-sidebar-border">
@@ -104,7 +108,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-72 bg-sidebar">
+        <SheetContent
+          id="mobile-sidebar"
+          side="left"
+          className="p-0 w-72 bg-sidebar"
+          aria-label="Navigation menu"
+        >
           <Sidebar mobile />
         </SheetContent>
       </Sheet>
@@ -115,7 +124,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background px-4 shadow-sm lg:hidden">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Open navigation menu"
+                aria-expanded={sidebarOpen}
+                aria-controls="mobile-sidebar"
+              >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Open sidebar</span>
               </Button>

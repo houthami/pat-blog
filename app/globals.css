@@ -123,4 +123,36 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Improved touch targets for mobile */
+  @media (max-width: 768px) {
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"],
+    a {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Better spacing for mobile cards */
+    .mobile-card-spacing {
+      @apply p-4 gap-4;
+    }
+
+    /* Improved mobile text sizes */
+    .mobile-text-improvement {
+      font-size: 16px; /* Prevents zoom on iOS */
+    }
+  }
+
+  /* Focus improvements */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2;
+  }
+
+  /* Better scrolling on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
 }

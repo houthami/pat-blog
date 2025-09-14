@@ -286,7 +286,7 @@ export default function RecipeFeedPage() {
 
                     {/* Recipe Content */}
                     <div className="px-4 pb-2">
-                      <Link href={`/recipes/${recipe.id}`}>
+                      <Link href={`/recipe/${recipe.id}`}>
                         <h3 className="font-bold text-lg mb-2 hover:text-primary cursor-pointer">
                           {recipe.title}
                         </h3>

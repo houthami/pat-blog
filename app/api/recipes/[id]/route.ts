@@ -10,34 +10,85 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    // Determine access level based on authentication
+    const isAuthenticated = !!session?.user
+    const userRole = session?.user?.role
+    const canViewDrafts = userRole && ['ADMIN', 'EDITOR'].includes(userRole)
 
-    // Find user by email to get correct ID
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email || "admin@pastry.com" }
-    })
+    let whereClause: any = { id: params.id }
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    if (!isAuthenticated) {
+      // Public access: only published recipes
+      whereClause.status = 'PUBLISHED'
+    } else if (!canViewDrafts) {
+      // Authenticated users (members, viewers) can only see published recipes
+      whereClause.status = 'PUBLISHED'
     }
+    // ADMIN and EDITOR can see all recipes (no status filter)
 
     const recipe = await prisma.recipe.findFirst({
-      where: {
-        id: params.id,
-        authorId: user.id
+      where: whereClause,
+      include: {
+        author: {
+          select: {
+            name: true,
+            image: true
+          }
+        },
+        _count: {
+          select: {
+            views: true,
+            interactions: true,
+            comments: true
+          }
+        }
       }
     })
 
     if (!recipe) {
-      return NextResponse.json({ error: "Recipe not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Recipe not found" },
+        { status: 404 }
+      )
     }
 
-    return NextResponse.json(recipe)
+    // Parse JSON strings for ingredients and instructions
+    const formattedRecipe = {
+      ...recipe,
+      ingredients: recipe.ingredients ? JSON.parse(recipe.ingredients) : [],
+      instructions: recipe.instructions ? JSON.parse(recipe.instructions) : []
+    }
+
+    // Track view for authenticated users
+    if (isAuthenticated && session?.user?.email) {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { email: session.user.email }
+        })
+
+        if (user) {
+          await prisma.recipeView.create({
+            data: {
+              recipeId: recipe.id,
+              visitorId: user.id,
+              ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+            }
+          })
+        }
+      } catch (error) {
+        // Silently fail if view tracking fails
+        console.log('View tracking failed:', error)
+      }
+    }
+
+    return NextResponse.json(formattedRecipe)
   } catch (error) {
     console.error("Failed to fetch recipe:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }
 
