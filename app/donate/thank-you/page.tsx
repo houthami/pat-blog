@@ -13,8 +13,9 @@ import {
   CheckCircle
 } from "lucide-react"
 import Link from "next/link"
+import { Suspense } from "react"
 
-export default function ThankYouPage() {
+function ThankYouContent() {
   const searchParams = useSearchParams()
   const amount = searchParams?.get("amount") || "0"
 
@@ -159,5 +160,13 @@ export default function ThankYouPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ThankYouPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ThankYouContent />
+    </Suspense>
   )
 }
