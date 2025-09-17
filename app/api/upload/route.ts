@@ -1,9 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { writeFile } from "fs/promises"
-import { join } from "path"
-import { randomBytes } from "crypto"
+import { v2 as cloudinary } from "cloudinary"
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,22 +35,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File size must be less than 5MB" }, { status: 400 })
     }
 
-    // Generate unique filename
-    const extension = file.name.split('.').pop() || 'jpg'
-    const filename = `${randomBytes(16).toString('hex')}.${extension}`
-    
-    // Read file buffer
+    // Convert file to base64 for Cloudinary upload
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    const base64 = `data:${file.type};base64,${buffer.toString('base64')}`
 
-    // Save to public/uploads directory
-    const uploadDir = join(process.cwd(), "public", "uploads")
-    const filePath = join(uploadDir, filename)
-    
-    await writeFile(filePath, buffer)
-    
-    // Return the public URL
-    const url = `/uploads/${filename}`
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(base64, {
+      folder: "pastry-blog-uploads",
+      resource_type: "image",
+      transformation: [
+        { width: 1200, height: 1200, crop: "limit" },
+        { quality: "auto" }
+      ]
+    })
+
+    // Return the Cloudinary URL
+    const url = result.secure_url
     
     return NextResponse.json({ url, message: "File uploaded successfully" })
   } catch (error) {
