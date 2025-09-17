@@ -7,7 +7,16 @@
       "maxDuration": 30
     }
   },
-  "env": {
-    
-  }
+  "regions": ["cle1"],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=0, stale-while-revalidate"
+        }
+      ]
+    }
+  ]
 }

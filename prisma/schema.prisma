@@ -300,6 +300,9 @@ model ShoppingList {
   // Recipe association
   recipes   Recipe[] @relation("RecipeShoppingLists")
 
+  // Meal plan association
+  mealPlans MealPlan[]
+
   // Metadata
   isPublic  Boolean  @default(false)
   createdAt DateTime @default(now())
