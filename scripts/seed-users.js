@@ -32,13 +32,6 @@ async function main() {
       name: 'Viewer User',
       role: 'VIEWER',
       emailVerified: new Date()
-    },
-    {
-      email: 'member@pastry.com',
-      password: 'Member123!',
-      name: 'Member User',
-      role: 'MEMBER',
-      emailVerified: new Date()
     }
   ]
 

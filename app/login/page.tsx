@@ -95,7 +95,6 @@ export default function LoginPage() {
                 <div><strong>Admin:</strong> admin@pastry.com / Admin123!</div>
                 <div><strong>Editor:</strong> editor@pastry.com / Editor123!</div>
                 <div><strong>Viewer:</strong> viewer@pastry.com / Viewer123!</div>
-                <div><strong>Member:</strong> member@pastry.com / Member123!</div>
               </div>
             </div>
 
