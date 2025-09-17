@@ -30,6 +30,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   auditLogs     AuditLog[]
+  ownedSites    Site[]    @relation("SiteOwner") // Sites owned by this user
+  blogs         Blog[]    // Blogs created by user
 
   // Advanced feature relationships
   shoppingLists     ShoppingList[]
@@ -97,9 +99,9 @@ model AuditLog {
 }
 
 enum UserRole {
-  ADMIN
-  EDITOR
-  VIEWER
+  PLATFORM_ADMIN  // Can manage the entire platform
+  SITE_OWNER      // Owns and admin their own site/blog
+  VIEWER          // Can view and interact with content
 }
 
 enum RecipeStatus {
@@ -299,6 +301,9 @@ model ShoppingList {
 
   // Recipe association
   recipes   Recipe[] @relation("RecipeShoppingLists")
+
+  // Meal plan association
+  mealPlans MealPlan[]
 
   // Metadata
   isPublic  Boolean  @default(false)
@@ -524,4 +529,205 @@ model RecipeScaling {
   createdAt         DateTime @default(now())
 
   @@map("recipe_scalings")
+}
+
+// Multi-Tenant Site Models
+enum SiteStatus {
+  ACTIVE      // Site is active and live
+  SUSPENDED   // Site is temporarily suspended
+  PENDING     // Site is pending approval
+  ARCHIVED    // Site is archived
+}
+
+model Site {
+  id          String     @id @default(cuid())
+  name        String     // Display name "My Pastry Blog"
+  slug        String     @unique // URL slug "my-pastry-blog"
+  subdomain   String     @unique // Subdomain "pastry" for pastry.yourdomain.com
+  customDomain String?   @unique // Optional custom domain "myblog.com"
+  description String?
+  status      SiteStatus @default(PENDING)
+
+  // Site Owner
+  ownerId     String
+  owner       User       @relation("SiteOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Site Customization
+  theme       String     @default("default") // Theme identifier
+  logoUrl     String?
+  favicon     String?
+  primaryColor String?   @default("#3b82f6") // Brand color
+
+  // Site Settings
+  isPublic    Boolean    @default(true)
+  allowComments Boolean  @default(true)
+  allowRegistration Boolean @default(false) // Allow users to join this site
+
+  // SEO Settings
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[]
+
+  // Site Category/Niche
+  category        String   // "pastry", "sewing", "tech", "lifestyle", etc.
+  tags            String[] // Additional tags
+
+  // Analytics
+  totalViews      Int      @default(0)
+  totalPosts      Int      @default(0)
+  totalSubscribers Int     @default(0)
+
+  // Relationships
+  blogs           Blog[]   // Blog posts on this site
+
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  launchedAt      DateTime? // When site went live
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([category])
+  @@index([subdomain])
+  @@map("sites")
+}
+
+// Blog Management Models
+enum BlogStatus {
+  DRAFT       // Blog is in draft mode
+  PUBLISHED   // Blog is live and visible to viewers
+  SUSPENDED   // Blog is temporarily hidden
+  ARCHIVED    // Blog is archived but kept for reference
+}
+
+model Blog {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  content     String     // Rich text content (HTML/Markdown)
+  slug        String     // URL-friendly identifier (unique per site)
+  imageUrl    String?    // Featured image
+  status      BlogStatus @default(DRAFT)
+
+  // Site Association
+  siteId      String
+  site        Site       @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  // SEO & Metadata
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[] // SEO keywords
+
+  // Publishing Info
+  publishedAt     DateTime?
+  scheduledAt     DateTime? // For scheduled publishing
+  lastEditedAt    DateTime  @default(now())
+
+  // Author Info
+  authorId        String
+  author          User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Blog Settings
+  allowComments   Boolean   @default(true)
+  allowSharing    Boolean   @default(true)
+  isPrivate       Boolean   @default(false) // Private blogs only visible to author
+
+  // Categories and Tags
+  categories      String[]  // Blog categories
+  tags            String[]  // Blog tags
+
+  // Analytics
+  views           BlogView[]
+  interactions    BlogInteraction[]
+  comments        BlogComment[]
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([siteId, slug]) // Slug must be unique per site
+  @@index([siteId])
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+  @@map("blogs")
+}
+
+model BlogView {
+  id        String   @id @default(cuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  // Visitor Info
+  visitorId String   // Anonymous visitor ID
+  ipAddress String?
+  userAgent String?
+
+  // Location Data
+  country   String?
+  city      String?
+  region    String?
+
+  // Engagement Metrics
+  timeSpent   Int      @default(0) // seconds spent reading
+  scrollDepth Float    @default(0) // percentage scrolled
+  bounced     Boolean  @default(true)
+
+  // Referral Data
+  referrer  String?
+  source    String?  // organic, social, direct, email
+  medium    String?  // search, social, referral
+  campaign  String? // utm_campaign
+
+  viewedAt  DateTime @default(now())
+
+  @@map("blog_views")
+}
+
+model BlogInteraction {
+  id        String   @id @default(cuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  visitorId String
+  type      String   // "like", "dislike", "share", "bookmark", "copy_url"
+  value     String?  // additional data (e.g., social platform for shares)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([visitorId, blogId, type])
+  @@map("blog_interactions")
+}
+
+model BlogComment {
+  id        String   @id @default(cuid())
+  blogId    String
+  blog      Blog     @relation(fields: [blogId], references: [id], onDelete: Cascade)
+
+  // Visitor Info
+  visitorId String
+  name      String   // Display name
+  email     String?  // Optional email (not displayed)
+
+  // Comment Content
+  content   String   // Comment text
+
+  // Threading support
+  parentId  String?  // For reply functionality
+  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   BlogComment[] @relation("CommentReplies")
+
+  // Moderation
+  approved  Boolean  @default(false)
+  flagged   Boolean  @default(false)
+
+  // Analytics
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("blog_comments")
 }

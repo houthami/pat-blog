@@ -95,11 +95,30 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(recipesUrl)
     }
 
-    // Only ADMIN and EDITOR can access dashboard
-    if (!["ADMIN", "EDITOR"].includes(token.role as string)) {
+    // Only SUPER_USER, ADMIN and EDITOR can access dashboard
+    if (!["SUPER_USER", "ADMIN", "EDITOR"].includes(token.role as string)) {
       const recipesUrl = new URL("/recipes", request.url)
       recipesUrl.searchParams.set("message", "insufficient-permissions")
       return NextResponse.redirect(recipesUrl)
+    }
+  }
+
+  // Super User blog management access
+  if (pathname.startsWith("/super-admin") || pathname.startsWith("/blog-manager")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    })
+
+    if (!token) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("callbackUrl", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // Only SUPER_USER can access blog management
+    if (token.role !== "SUPER_USER") {
+      return new NextResponse('Forbidden - Super User access required', { status: 403 })
     }
   }
 
@@ -143,18 +162,18 @@ export async function middleware(request: NextRequest) {
       return new NextResponse('Forbidden - Admin access required', { status: 403 })
     }
 
-    // Analytics access - Admin and Editor only
-    if (pathname.startsWith("/analytics") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+    // Analytics access - Super User, Admin and Editor only
+    if (pathname.startsWith("/analytics") && !["SUPER_USER", "ADMIN", "EDITOR"].includes(token.role as string)) {
       return new NextResponse('Forbidden - Editor or Admin access required', { status: 403 })
     }
 
-    // Recipe creation - Admin and Editor only (Editor creates as draft)
-    if (pathname.startsWith("/recipes/create") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+    // Recipe creation - Super User, Admin and Editor only (Editor creates as draft)
+    if (pathname.startsWith("/recipes/create") && !["SUPER_USER", "ADMIN", "EDITOR"].includes(token.role as string)) {
       return new NextResponse('Forbidden - Content creator access required', { status: 403 })
     }
 
-    // Recipe editing - Admin and Editor only (with ownership rules)
-    if (pathname.startsWith("/recipes/edit") && !["ADMIN", "EDITOR"].includes(token.role as string)) {
+    // Recipe editing - Super User, Admin and Editor only (with ownership rules)
+    if (pathname.startsWith("/recipes/edit") && !["SUPER_USER", "ADMIN", "EDITOR"].includes(token.role as string)) {
       return new NextResponse('Forbidden - Content creator access required', { status: 403 })
     }
 
@@ -171,7 +190,11 @@ export async function middleware(request: NextRequest) {
 
     if (token) {
       // Role-based redirects after login
-      if (token.role === "ADMIN" || token.role === "EDITOR") {
+      if (token.role === "SUPER_USER") {
+        // Super User goes to blog management dashboard
+        const blogManagerUrl = new URL("/blog-manager", request.url)
+        return NextResponse.redirect(blogManagerUrl)
+      } else if (token.role === "ADMIN" || token.role === "EDITOR") {
         // Admin and Editor go to dashboard for content management
         const dashboardUrl = new URL("/dashboard", request.url)
         return NextResponse.redirect(dashboardUrl)

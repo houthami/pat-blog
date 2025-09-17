@@ -1,13 +1,26 @@
 import { type NextAuthOptions } from "next-auth"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
+import GoogleProvider from "next-auth/providers/google"
+import FacebookProvider from "next-auth/providers/facebook"
 import { prisma } from "./prisma"
 import { verifyPassword } from "./password"
 
 export const authOptions: NextAuthOptions = {
-  // Note: Don't use PrismaAdapter with CredentialsProvider
-  // adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma),
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        })]
+      : []),
+    ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
+      ? [FacebookProvider({
+          clientId: process.env.FACEBOOK_CLIENT_ID,
+          clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+        })]
+      : []),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -93,6 +106,18 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: "/login",
+    signUp: "/register",
+  },
+  events: {
+    async createUser({ user }) {
+      // Set default role for OAuth users
+      if (user.email) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { role: "VIEWER" }
+        })
+      }
+    },
   },
   secret: process.env.NEXTAUTH_SECRET || "dev-secret-key",
   debug: process.env.NODE_ENV === 'development',
