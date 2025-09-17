@@ -41,21 +41,27 @@ export const authOptions: NextAuthOptions = {
 
           console.log('[AUTH] Login successful for:', user.email)
 
-          // Update last login
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { lastLogin: new Date() }
-          })
+          // Update last login and log success (non-blocking)
+          try {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { lastLogin: new Date() }
+            })
 
-          // Log successful login
-          await prisma.auditLog.create({
-            data: {
-              userId: user.id,
-              action: 'LOGIN',
-              success: true,
-              details: { method: 'credentials' }
-            }
-          })
+            // Log successful login if audit table exists
+            await prisma.auditLog.create({
+              data: {
+                userId: user.id,
+                action: 'LOGIN',
+                success: true,
+                details: { method: 'credentials' }
+              }
+            }).catch(err => {
+              console.log('[AUTH] Audit log failed (non-critical):', err.message)
+            })
+          } catch (updateError) {
+            console.log('[AUTH] User update failed (non-critical):', updateError.message)
+          }
 
           return {
             id: user.id,

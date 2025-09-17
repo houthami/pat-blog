@@ -9,7 +9,9 @@
     "start": "next start",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy"
+    "prisma:migrate": "prisma migrate deploy",
+    "seed:users": "node scripts/seed-users.js",
+    "seed:all": "node scripts/seed-data.js && node scripts/seed-users.js"
   },
   "dependencies": {
     "@auth/core": "latest",
