@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, Save, Eye, Loader2 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sparkles, Save, Eye, Loader2, Shield } from "lucide-react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ImageUpload } from "@/components/image-upload"
 import { AIEnhancementModal } from "@/components/ai-enhancement-modal"
@@ -18,6 +19,9 @@ interface FormData {
   ingredients: string
   instructions: string
   imageUrl: string
+  source: string
+  sourceUrl: string
+  sourceNote: string
 }
 
 export default function NewRecipePage() {
@@ -28,6 +32,9 @@ export default function NewRecipePage() {
     ingredients: "",
     instructions: "",
     imageUrl: "",
+    source: "original",
+    sourceUrl: "",
+    sourceNote: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [aiModalOpen, setAiModalOpen] = useState(false)
@@ -234,6 +241,62 @@ export default function NewRecipePage() {
               </CardHeader>
               <CardContent>
                 <ImageUpload value={formData.imageUrl} onChange={(url) => handleInputChange("imageUrl", url)} />
+              </CardContent>
+            </Card>
+
+            {/* Recipe Source - Admin Only */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recipe Source</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Source Type</label>
+                  <select
+                    value={formData.source}
+                    onChange={(e) => handleInputChange("source", e.target.value)}
+                    className="w-full p-2 border border-input bg-background rounded-md text-sm"
+                  >
+                    <option value="original">Original Recipe</option>
+                    <option value="website">Website/Blog</option>
+                    <option value="cookbook">Cookbook</option>
+                    <option value="family">Family Recipe</option>
+                    <option value="magazine">Magazine</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="social">Social Media</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {formData.source !== "original" && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Source URL (if applicable)</label>
+                      <Input
+                        type="url"
+                        placeholder="https://example.com/recipe"
+                        value={formData.sourceUrl}
+                        onChange={(e) => handleInputChange("sourceUrl", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Source Notes</label>
+                      <Textarea
+                        placeholder="Additional details about the source (author name, book title, page number, etc.)"
+                        value={formData.sourceNote}
+                        onChange={(e) => handleInputChange("sourceNote", e.target.value)}
+                        rows={3}
+                        className="text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  This information helps track recipe sources for attribution and copyright purposes.
+                </p>
               </CardContent>
             </Card>
 

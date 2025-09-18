@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, description, ingredients, instructions, imageUrl, published } = body
+    const { title, description, ingredients, instructions, imageUrl, published, source, sourceUrl, sourceNote } = body
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -102,6 +102,10 @@ export async function POST(request: Request) {
         imageUrl: imageUrl || null,
         status: status,
         authorId: user.id,
+        // Add source fields (optional for backward compatibility)
+        ...(source && { source: source.trim() }),
+        ...(sourceUrl && { sourceUrl: sourceUrl.trim() }),
+        ...(sourceNote && { sourceNote: sourceNote.trim() }),
       },
     })
 

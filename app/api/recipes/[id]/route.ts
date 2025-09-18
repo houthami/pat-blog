@@ -120,6 +120,11 @@ export async function PATCH(
     if (body.description !== undefined) updates.description = body.description?.trim() || null
     if (body.imageUrl !== undefined) updates.imageUrl = body.imageUrl || null
 
+    // Handle source fields (optional for backward compatibility)
+    if (body.source !== undefined) updates.source = body.source?.trim() || null
+    if (body.sourceUrl !== undefined) updates.sourceUrl = body.sourceUrl?.trim() || null
+    if (body.sourceNote !== undefined) updates.sourceNote = body.sourceNote?.trim() || null
+
     // Handle status updates with role-based permissions
     if (body.status !== undefined) {
       const validStatuses = ['DRAFT', 'PUBLISHED', 'SUSPENDED']

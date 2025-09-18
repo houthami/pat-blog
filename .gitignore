@@ -7,7 +7,7 @@
 /.next/
 /out/
 /.claude/
-/folder
+/img/
 
 # production
 /build

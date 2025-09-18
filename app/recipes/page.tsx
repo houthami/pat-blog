@@ -1,19 +1,26 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RecipeCardSkeleton } from "@/components/ui/loading-states"
 import { NetworkError } from "@/components/ui/error-states"
-import { ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, Plus, Filter, Sparkles, Edit } from "lucide-react"
+import {
+  ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, Plus, Filter,
+  Sparkles, Edit, TrendingUp, Award, Flame, Timer, Users2, BookOpen, Grid3X3,
+  List, SlidersHorizontal, X, ChevronDown, Zap, Crown
+} from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { AnonymousUserBanner } from "@/components/anonymous/progressive-registration"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { UserAccountDropdown } from "@/components/user/user-account-dropdown"
+import { cn } from "@/lib/utils"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface Recipe {
   id: string
@@ -22,8 +29,15 @@ interface Recipe {
   published?: boolean
   createdAt: string
   imageUrl: string | null
+  difficulty?: 'easy' | 'medium' | 'hard'
+  prepTime?: number
+  cookTime?: number
+  servings?: number
+  cuisine?: string
+  mealType?: string[]
   author: {
     name: string | null
+    image?: string | null
   }
   _count?: {
     interactions: number
@@ -31,6 +45,9 @@ interface Recipe {
     comments: number
   }
   averageRating?: number
+  tags?: string[]
+  isPopular?: boolean
+  isTrending?: boolean
 }
 
 interface ApiResponse {
@@ -53,6 +70,13 @@ export default function RecipesPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [sortBy, setSortBy] = useState('latest')
+  const [filterBy, setFilterBy] = useState('all')
+  const [difficultyFilter, setDifficultyFilter] = useState('all')
+  const [timeFilter, setTimeFilter] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const isAuthenticated = !!session?.user
   const userRole = session?.user?.role
