@@ -36,6 +36,7 @@ import { BannerAd, SidebarAd, ContentAd } from "@/components/monetization/ad-man
 import { SponsoredContent } from "@/components/monetization/sponsored-content"
 import { SaveRecipePrompt } from "@/components/anonymous/progressive-registration"
 import { TextFormatter } from "@/components/text-formatter"
+import { InstructionViewer } from "@/components/instruction-viewer"
 
 interface Recipe {
   id: string
@@ -239,19 +240,6 @@ export default function UnifiedRecipePage() {
     setCompletedSteps(newCompleted)
   }
 
-  const startCookingMode = () => {
-    setCookingMode(true)
-    setCurrentStep(0)
-    setCompletedSteps(new Set())
-  }
-
-  const exitCookingMode = () => {
-    setCookingMode(false)
-    setCurrentStep(0)
-    setCompletedSteps(new Set())
-    setCookingTimer(null)
-    setIsTimerRunning(false)
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-background to-amber-50/30">
@@ -288,20 +276,6 @@ export default function UnifiedRecipePage() {
                 </Badge>
               )}
 
-              {/* Cooking Mode Toggle */}
-              <Button
-                variant={cookingMode ? "default" : "outline"}
-                onClick={cookingMode ? exitCookingMode : startCookingMode}
-                className={cn(
-                  "gap-2",
-                  cookingMode
-                    ? "bg-orange-500 hover:bg-orange-600 text-white"
-                    : "hover:bg-orange-50 border-orange-200 text-orange-700"
-                )}
-              >
-                <Utensils className="h-4 w-4" />
-                {cookingMode ? "Exit Cook Mode" : "Start Cooking"}
-              </Button>
 
               {/* Edit Button */}
               {canEdit && (
@@ -316,90 +290,6 @@ export default function UnifiedRecipePage() {
         </div>
       </header>
 
-      {/* Cooking Mode Overlay */}
-      <AnimatePresence>
-        {cookingMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 z-60 flex items-center justify-center p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Cooking Mode</h2>
-                <Button variant="ghost" onClick={exitCookingMode}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Exit
-                </Button>
-              </div>
-
-              {/* Progress */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Step {currentStep + 1} of {recipe.instructions.length}</span>
-                  <span>{Math.round(((currentStep + 1) / recipe.instructions.length) * 100)}% Complete</span>
-                </div>
-                <Progress
-                  value={((currentStep + 1) / recipe.instructions.length) * 100}
-                  className="h-2"
-                />
-              </div>
-
-              {/* Current Step */}
-              <div className="bg-orange-50 rounded-xl p-6 mb-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-                    {currentStep + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-lg leading-relaxed text-gray-900">
-                      <TextFormatter isInstruction={true}>{recipe.instructions[currentStep]}</TextFormatter>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step Controls */}
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outline"
-                  onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-                  disabled={currentStep === 0}
-                >
-                  Previous Step
-                </Button>
-
-                <Button
-                  onClick={() => toggleStepComplete(currentStep)}
-                  variant={completedSteps.has(currentStep) ? "default" : "outline"}
-                  className={cn(
-                    completedSteps.has(currentStep)
-                      ? "bg-green-500 hover:bg-green-600 text-white"
-                      : "hover:bg-green-50 border-green-300 text-green-700"
-                  )}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {completedSteps.has(currentStep) ? "Completed" : "Mark Complete"}
-                </Button>
-
-                <Button
-                  onClick={() => setCurrentStep(Math.min(recipe.instructions.length - 1, currentStep + 1))}
-                  disabled={currentStep === recipe.instructions.length - 1}
-                  className="bg-orange-500 hover:bg-orange-600 text-white"
-                >
-                  Next Step
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -479,13 +369,6 @@ export default function UnifiedRecipePage() {
 
               {/* Action Buttons */}
               <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
-                <Button
-                  onClick={startCookingMode}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 text-lg shadow-lg"
-                >
-                  <PlayCircle className="w-5 h-5 mr-2" />
-                  Start Cooking
-                </Button>
                 <Button variant="outline" onClick={handleShare} className="px-6 py-3">
                   <Share className="w-4 h-4 mr-2" />
                   Share Recipe
@@ -603,71 +486,15 @@ export default function UnifiedRecipePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
-                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-3 text-xl">
-                      <Utensils className="w-6 h-6" />
-                      Instructions
-                      <Badge className="bg-white/20 text-white border-white/30">
-                        {recipe.instructions.length} Steps
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-6">
-                      {recipe.instructions.map((instruction, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.5, delay: index * 0.1 }}
-                          className={cn(
-                            "flex gap-4 p-4 rounded-xl transition-all duration-300",
-                            completedSteps.has(index)
-                              ? "bg-green-50 border border-green-200"
-                              : "bg-gray-50 hover:bg-blue-50 border border-transparent hover:border-blue-200"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors",
-                            completedSteps.has(index)
-                              ? "bg-green-500 text-white"
-                              : "bg-blue-500 text-white"
-                          )}>
-                            {completedSteps.has(index) ? (
-                              <CheckCircle className="w-4 h-4" />
-                            ) : (
-                              index + 1
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className={cn(
-                              "leading-relaxed transition-colors",
-                              completedSteps.has(index)
-                                ? "text-green-800 line-through"
-                                : "text-gray-700"
-                            )}>
-                              <TextFormatter isInstruction={true}>{instruction}</TextFormatter>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => toggleStepComplete(index)}
-                              className={cn(
-                                "mt-2 h-8",
-                                completedSteps.has(index)
-                                  ? "text-green-600 hover:text-green-700"
-                                  : "text-blue-600 hover:text-blue-700"
-                              )}
-                            >
-                              {completedSteps.has(index) ? "Undo" : "Mark Done"}
-                            </Button>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <InstructionViewer
+                  instructions={recipe.instructions}
+                  completedSteps={completedSteps}
+                  onToggleStep={toggleStepComplete}
+                  cookingMode={cookingMode}
+                  onCookingModeToggle={() => setCookingMode(!cookingMode)}
+                  currentStep={currentStep}
+                  onStepChange={setCurrentStep}
+                />
               </motion.div>
             </div>
 
@@ -684,13 +511,6 @@ export default function UnifiedRecipePage() {
                     <CardTitle className="text-lg">Recipe Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Button
-                      onClick={startCookingMode}
-                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
-                    >
-                      <PlayCircle className="w-4 h-4 mr-2" />
-                      Start Cooking Mode
-                    </Button>
                     <Button variant="outline" className="w-full">
                       <Scale className="w-4 h-4 mr-2" />
                       Scale Recipe

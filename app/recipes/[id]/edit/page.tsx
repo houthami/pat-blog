@@ -11,6 +11,7 @@ import { Sparkles, Save, Eye, Loader2, ArrowLeft, Trash2, Shield } from "lucide-
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ImageUpload } from "@/components/image-upload"
 import { AIEnhancementModal } from "@/components/ai-enhancement-modal"
+import { InstructionEditor } from "@/components/instruction-editor"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -366,39 +367,11 @@ export default function EditRecipePage() {
             </Card>
 
             {/* Instructions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Instructions
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleAIEnhancement("instructions")}
-                    className="text-accent hover:text-accent-foreground hover:bg-accent/10"
-                  >
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    AI Enhance
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  placeholder="1. Preheat oven to 350°F (175°C)&#10;2. In a large bowl, cream together butter and sugar&#10;3. Add eggs one at a time, beating well after each addition"
-                  value={formData.instructions}
-                  onChange={(e) => handleInputChange("instructions", e.target.value)}
-                  rows={10}
-                />
-                <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                  <p>Number each step for clear, easy-to-follow instructions</p>
-                  <p><strong>Special formatting:</strong></p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li><code># Title</code> - Creates a section title (not numbered)</li>
-                    <li><code>&gt; Description</code> - Creates a highlighted note (not numbered)</li>
-                    <li><code>**Bold text**</code> - Makes text bold</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+            <InstructionEditor
+              value={formData.instructions}
+              onChange={(value) => handleInputChange("instructions", value)}
+              onAIEnhance={() => handleAIEnhancement("instructions")}
+            />
           </div>
 
           {/* Sidebar */}
