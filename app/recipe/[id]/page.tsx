@@ -359,7 +359,7 @@ export default function UnifiedRecipePage() {
                   </div>
                   <div className="flex-1">
                     <div className="text-lg leading-relaxed text-gray-900">
-                      <TextFormatter>{recipe.instructions[currentStep]}</TextFormatter>
+                      <TextFormatter isInstruction={true}>{recipe.instructions[currentStep]}</TextFormatter>
                     </div>
                   </div>
                 </div>
@@ -647,7 +647,7 @@ export default function UnifiedRecipePage() {
                                 ? "text-green-800 line-through"
                                 : "text-gray-700"
                             )}>
-                              <TextFormatter>{instruction}</TextFormatter>
+                              <TextFormatter isInstruction={true}>{instruction}</TextFormatter>
                             </div>
                             <Button
                               size="sm"

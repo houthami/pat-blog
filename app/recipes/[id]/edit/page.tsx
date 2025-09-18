@@ -80,17 +80,34 @@ export default function EditRecipePage() {
 
         if (recipe.instructions) {
           if (Array.isArray(recipe.instructions)) {
-            instructionsText = recipe.instructions.map((instruction: string, index: number) =>
-              `${index + 1}. ${instruction}`
-            ).join('\n')
+            // Convert instructions back to text format, preserving formatting
+            let stepCounter = 1
+            instructionsText = recipe.instructions.map((instruction: string) => {
+              const trimmed = instruction.trim()
+              // Preserve titles (lines starting with #) and descriptions (lines starting with >)
+              if (trimmed.startsWith('#') || trimmed.startsWith('>') || trimmed === '') {
+                return instruction
+              } else {
+                // This is a regular step, number it
+                return `${stepCounter++}. ${instruction}`
+              }
+            }).join('\n')
           } else {
             try {
               const parsedInstructions = JSON.parse(recipe.instructions)
-              instructionsText = Array.isArray(parsedInstructions)
-                ? parsedInstructions.map((instruction: string, index: number) =>
-                    `${index + 1}. ${instruction}`
-                  ).join('\n')
-                : ""
+              if (Array.isArray(parsedInstructions)) {
+                let stepCounter = 1
+                instructionsText = parsedInstructions.map((instruction: string) => {
+                  const trimmed = instruction.trim()
+                  if (trimmed.startsWith('#') || trimmed.startsWith('>') || trimmed === '') {
+                    return instruction
+                  } else {
+                    return `${stepCounter++}. ${instruction}`
+                  }
+                }).join('\n')
+              } else {
+                instructionsText = ""
+              }
             } catch {
               instructionsText = recipe.instructions
             }
@@ -371,9 +388,15 @@ export default function EditRecipePage() {
                   onChange={(e) => handleInputChange("instructions", e.target.value)}
                   rows={10}
                 />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Number each step for clear, easy-to-follow instructions
-                </p>
+                <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                  <p>Number each step for clear, easy-to-follow instructions</p>
+                  <p><strong>Special formatting:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><code># Title</code> - Creates a section title (not numbered)</li>
+                    <li><code>&gt; Description</code> - Creates a highlighted note (not numbered)</li>
+                    <li><code>**Bold text**</code> - Makes text bold</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </div>

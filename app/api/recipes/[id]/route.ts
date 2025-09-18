@@ -168,7 +168,14 @@ export async function PATCH(
     if (body.instructions !== undefined) {
       const instructionsArray = body.instructions?.trim()
         ? body.instructions.split('\n').filter((item: string) => item.trim()).map((item: string) => {
-            return item.replace(/^\d+\.\s*/, '').trim()
+            const trimmed = item.trim()
+            // Preserve titles (lines starting with #) and descriptions (lines starting with >)
+            if (trimmed.startsWith('#') || trimmed.startsWith('>')) {
+              return trimmed
+            } else {
+              // Remove numbering from regular steps
+              return trimmed.replace(/^\d+\.\s*/, '').trim()
+            }
           })
         : []
       updates.instructions = JSON.stringify(instructionsArray)

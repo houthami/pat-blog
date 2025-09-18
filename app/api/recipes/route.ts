@@ -66,9 +66,15 @@ export async function POST(request: Request) {
       : []
     
     const instructionsArray = instructions?.trim()
-      ? instructions.split('\n').filter((item: string) => item.trim()).map((item: string, index: number) => {
-          // Remove any existing numbering and trim
-          return item.replace(/^\d+\.\s*/, '').trim()
+      ? instructions.split('\n').filter((item: string) => item.trim()).map((item: string) => {
+          const trimmed = item.trim()
+          // Preserve titles (lines starting with #) and descriptions (lines starting with >)
+          if (trimmed.startsWith('#') || trimmed.startsWith('>')) {
+            return trimmed
+          } else {
+            // Remove numbering from regular steps
+            return trimmed.replace(/^\d+\.\s*/, '').trim()
+          }
         })
       : []
 

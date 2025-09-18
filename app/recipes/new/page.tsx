@@ -225,9 +225,15 @@ export default function NewRecipePage() {
                   onChange={(e) => handleInputChange("instructions", e.target.value)}
                   rows={10}
                 />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Number each step for clear, easy-to-follow instructions
-                </p>
+                <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                  <p>Number each step for clear, easy-to-follow instructions</p>
+                  <p><strong>Special formatting:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li><code># Title</code> - Creates a section title (not numbered)</li>
+                    <li><code>&gt; Description</code> - Creates a highlighted note (not numbered)</li>
+                    <li><code>**Bold text**</code> - Makes text bold</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </div>
