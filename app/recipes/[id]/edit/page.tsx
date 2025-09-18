@@ -61,15 +61,41 @@ export default function EditRecipePage() {
       if (response.ok) {
         const recipe = await response.json()
         
-        // Parse JSON fields back to text format for editing
-        const ingredientsText = recipe.ingredients 
-          ? JSON.parse(recipe.ingredients).join('\n') 
-          : ""
-        const instructionsText = recipe.instructions 
-          ? JSON.parse(recipe.instructions).map((instruction: string, index: number) => 
+        // Handle ingredients and instructions - they may be arrays or JSON strings
+        let ingredientsText = ""
+        let instructionsText = ""
+
+        if (recipe.ingredients) {
+          if (Array.isArray(recipe.ingredients)) {
+            ingredientsText = recipe.ingredients.join('\n')
+          } else {
+            try {
+              const parsedIngredients = JSON.parse(recipe.ingredients)
+              ingredientsText = Array.isArray(parsedIngredients) ? parsedIngredients.join('\n') : ""
+            } catch {
+              ingredientsText = recipe.ingredients
+            }
+          }
+        }
+
+        if (recipe.instructions) {
+          if (Array.isArray(recipe.instructions)) {
+            instructionsText = recipe.instructions.map((instruction: string, index: number) =>
               `${index + 1}. ${instruction}`
             ).join('\n')
-          : ""
+          } else {
+            try {
+              const parsedInstructions = JSON.parse(recipe.instructions)
+              instructionsText = Array.isArray(parsedInstructions)
+                ? parsedInstructions.map((instruction: string, index: number) =>
+                    `${index + 1}. ${instruction}`
+                  ).join('\n')
+                : ""
+            } catch {
+              instructionsText = recipe.instructions
+            }
+          }
+        }
 
         setFormData({
           title: recipe.title,
@@ -77,7 +103,7 @@ export default function EditRecipePage() {
           ingredients: ingredientsText,
           instructions: instructionsText,
           imageUrl: recipe.imageUrl || "",
-          published: recipe.published,
+          published: recipe.status === 'PUBLISHED',
           source: recipe.source || "original",
           sourceUrl: recipe.sourceUrl || "",
           sourceNote: recipe.sourceNote || ""
