@@ -152,6 +152,15 @@ export default function UnifiedRecipePage() {
     }
   }, [params.id, fetchRecipe])
 
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [])
+
   const handleRecipeUpdate = (updatedRecipe: Recipe) => {
     setRecipe(updatedRecipe)
   }
@@ -376,16 +385,6 @@ export default function UnifiedRecipePage() {
       timerRef.current = null
     }
   }
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-      }
-    }
-  }, [])
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-background to-amber-50/30">
