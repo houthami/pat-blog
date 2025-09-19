@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useCallback } from "react"
 
 interface AnalyticsTrackerProps {
   recipeId: string
@@ -11,6 +11,33 @@ export function AnalyticsTracker({ recipeId }: AnalyticsTrackerProps) {
   const maxScroll = useRef<number>(0)
   const hasTrackedView = useRef<boolean>(false)
   const visitorId = useRef<string>("")
+
+  const trackView = useCallback(() => {
+    if (hasTrackedView.current) return
+    hasTrackedView.current = true
+
+    console.log("📊 Tracking initial page view...")
+
+    fetch("/api/analytics/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipeId,
+        visitorId: visitorId.current,
+        type: "view",
+        timeSpent: 0,
+        scrollDepth: 0,
+        bounced: true
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("✅ View tracked successfully:", data)
+    })
+    .catch(error => {
+      console.error("❌ Error tracking view:", error)
+    })
+  }, [recipeId])
 
   useEffect(() => {
     // Generate or get visitor ID from localStorage
@@ -99,34 +126,7 @@ export function AnalyticsTracker({ recipeId }: AnalyticsTrackerProps) {
       window.removeEventListener("scroll", handleScroll)
       window.removeEventListener("beforeunload", handleBeforeUnload)
     }
-  }, [recipeId])
-
-  const trackView = () => {
-    if (hasTrackedView.current) return
-    hasTrackedView.current = true
-
-    console.log("📊 Tracking initial page view...")
-    
-    fetch("/api/analytics/track", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipeId,
-        visitorId: visitorId.current,
-        type: "view",
-        timeSpent: 0,
-        scrollDepth: 0,
-        bounced: true
-      })
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log("✅ View tracked successfully:", data)
-    })
-    .catch(error => {
-      console.error("❌ Error tracking view:", error)
-    })
-  }
+  }, [recipeId, trackView])
 
   // This component renders nothing visible
   return null
