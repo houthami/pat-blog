@@ -48,6 +48,15 @@ export function InstructionViewer({
   currentStep = 0,
   onStepChange
 }: InstructionViewerProps) {
+  // Debug logging
+  console.log('InstructionViewer props:', {
+    instructions: instructions?.length || 0,
+    cookingMode,
+    currentStep,
+    hasOnStepChange: !!onStepChange,
+    hasOnCookingModeToggle: !!onCookingModeToggle
+  })
+
   // Parse instructions into structured items
   const parsedInstructions: InstructionItem[] = instructions.map((instruction, index) => {
     const trimmed = instruction.trim()
@@ -58,8 +67,17 @@ export function InstructionViewer({
       type = 'title'
       content = trimmed.slice(1).trim()
     } else if (trimmed.startsWith('>')) {
-      type = 'note'
-      content = trimmed.slice(1).trim()
+      // Check if it's a numbered step (like "> 1 Do something") or just a note
+      const afterArrow = trimmed.slice(1).trim()
+      if (/^\d+\s/.test(afterArrow)) {
+        // It's a numbered step like "> 1 Mix ingredients"
+        type = 'step'
+        content = afterArrow
+      } else {
+        // It's a regular note like "> Note: Make sure to..."
+        type = 'note'
+        content = afterArrow
+      }
     }
 
     return { type, content, index }
@@ -81,7 +99,13 @@ export function InstructionViewer({
   // Get current cooking step
   const currentCookingStep = cookingSteps[currentStep]
 
-  if (cookingMode && onStepChange) {
+  console.log('Parsed data:', {
+    totalSteps,
+    currentCookingStep: currentCookingStep?.content || 'none',
+    cookingMode
+  })
+
+  if (cookingMode) {
     return (
       <Card className="border-orange-300 bg-orange-50">
         <CardHeader className="bg-orange-500 text-white">
@@ -96,7 +120,10 @@ export function InstructionViewer({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onCookingModeToggle}
+              onClick={() => {
+                console.log('Exit cooking mode clicked')
+                onCookingModeToggle && onCookingModeToggle()
+              }}
               className="text-white hover:bg-white/20"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -133,7 +160,10 @@ export function InstructionViewer({
           <div className="flex items-center justify-between gap-4">
             <Button
               variant="outline"
-              onClick={() => onStepChange(Math.max(0, currentStep - 1))}
+              onClick={() => {
+                console.log('Previous clicked, current step:', currentStep)
+                onStepChange && onStepChange(Math.max(0, currentStep - 1))
+              }}
               disabled={currentStep === 0}
               className="flex items-center gap-2"
             >
@@ -142,7 +172,10 @@ export function InstructionViewer({
             </Button>
 
             <Button
-              onClick={() => currentCookingStep && onToggleStep(currentCookingStep.index)}
+              onClick={() => {
+                console.log('Complete clicked, current step:', currentCookingStep?.index)
+                currentCookingStep && onToggleStep(currentCookingStep.index)
+              }}
               className={cn(
                 "flex items-center gap-2",
                 currentCookingStep && completedSteps.has(currentCookingStep.index)
@@ -155,7 +188,10 @@ export function InstructionViewer({
             </Button>
 
             <Button
-              onClick={() => onStepChange(Math.min(totalSteps - 1, currentStep + 1))}
+              onClick={() => {
+                console.log('Next clicked, current step:', currentStep, 'total:', totalSteps)
+                onStepChange && onStepChange(Math.min(totalSteps - 1, currentStep + 1))
+              }}
               disabled={currentStep === totalSteps - 1}
               className="bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2"
             >
@@ -173,7 +209,10 @@ export function InstructionViewer({
                   key={step.index}
                   variant={index === currentStep ? "default" : "outline"}
                   size="sm"
-                  onClick={() => onStepChange(index)}
+                  onClick={() => {
+                    console.log('Step overview clicked, going to step:', index)
+                    onStepChange && onStepChange(index)
+                  }}
                   className={cn(
                     "w-8 h-8 p-0",
                     completedSteps.has(step.index) && "bg-green-500 hover:bg-green-600 text-white"
@@ -209,7 +248,10 @@ export function InstructionViewer({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onCookingModeToggle}
+              onClick={() => {
+                console.log('Start cooking mode clicked')
+                onCookingModeToggle()
+              }}
               className="text-white hover:bg-white/20"
             >
               <Play className="w-4 h-4 mr-2" />
@@ -346,7 +388,10 @@ export function InstructionViewer({
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <Button
-                  onClick={onCookingModeToggle}
+                  onClick={() => {
+                    console.log('Start Kitchen Mode (big button) clicked')
+                    onCookingModeToggle && onCookingModeToggle()
+                  }}
                   size="lg"
                   className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white h-14 px-8 text-lg font-semibold shadow-lg"
                 >
