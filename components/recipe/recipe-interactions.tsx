@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ThumbsUp, ThumbsDown, BookmarkPlus, Share2, Heart } from "lucide-react"
@@ -36,11 +36,7 @@ export function RecipeInteractions({
 
   const isVisitor = userRole === 'VISITOR'
 
-  useEffect(() => {
-    fetchInteractions()
-  }, [recipeId])
-
-  const fetchInteractions = async () => {
+  const fetchInteractions = useCallback(async () => {
     try {
       const response = await fetch(`/api/recipes/${recipeId}/interactions`)
       if (response.ok) {
@@ -50,7 +46,11 @@ export function RecipeInteractions({
     } catch (error) {
       console.error('Failed to fetch interactions:', error)
     }
-  }
+  }, [recipeId])
+
+  useEffect(() => {
+    fetchInteractions()
+  }, [fetchInteractions])
 
   const handleInteraction = async (type: string) => {
     if (!isAuthenticated) {

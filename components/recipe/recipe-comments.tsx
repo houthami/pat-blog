@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -46,11 +46,7 @@ export function RecipeComments({
   const canComment = isAuthenticated && userRole !== 'VISITOR'
   const comments = commentsData?.comments || []
 
-  useEffect(() => {
-    fetchComments()
-  }, [recipeId])
-
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     try {
       const response = await fetch(`/api/recipes/${recipeId}/comments`)
       if (response.ok) {
@@ -60,7 +56,11 @@ export function RecipeComments({
     } catch (error) {
       console.error('Failed to fetch comments:', error)
     }
-  }
+  }, [recipeId])
+
+  useEffect(() => {
+    fetchComments()
+  }, [fetchComments])
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
