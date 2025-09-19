@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -114,13 +114,7 @@ export default function UnifiedRecipePage() {
     return '/recipes'
   }
 
-  useEffect(() => {
-    if (params.id) {
-      fetchRecipe(params.id as string)
-    }
-  }, [params.id])
-
-  const fetchRecipe = async (id: string) => {
+  const fetchRecipe = useCallback(async (id: string) => {
     try {
       setIsLoading(true)
       setError(null)
@@ -150,7 +144,13 @@ export default function UnifiedRecipePage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (params.id) {
+      fetchRecipe(params.id as string)
+    }
+  }, [params.id, fetchRecipe])
 
   const handleRecipeUpdate = (updatedRecipe: Recipe) => {
     setRecipe(updatedRecipe)
