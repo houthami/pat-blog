@@ -83,11 +83,22 @@ export function InstructionViewer({
     return { type, content, index }
   })
 
-  // Add step numbers only to actual cooking steps
+  // Add step numbers only to actual cooking steps that don't already have numbers
   let stepCounter = 1
   parsedInstructions.forEach(item => {
     if (item.type === 'step') {
-      item.stepNumber = stepCounter++
+      // Check if the content already starts with a number
+      if (/^\d+\s/.test(item.content)) {
+        // Extract the existing number
+        const match = item.content.match(/^(\d+)\s(.*)/)
+        if (match) {
+          item.stepNumber = parseInt(match[1])
+          item.content = match[2] // Remove the number from content
+        }
+      } else {
+        // Add sequential number for unnumbered steps
+        item.stepNumber = stepCounter++
+      }
     }
   })
 
