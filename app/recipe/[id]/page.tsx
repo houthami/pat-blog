@@ -94,6 +94,9 @@ export default function UnifiedRecipePage() {
   const [showNutrition, setShowNutrition] = useState(false)
   const [isReading, setIsReading] = useState(false)
 
+  // Timer ref
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
   // Determine user context and navigation
   const isAuthenticated = !!session
   const isPublicUser = !session
@@ -303,8 +306,6 @@ export default function UnifiedRecipePage() {
   }
 
   // Timer functionality
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-
   const startTimer = (minutes: number) => {
     if (minutes === 0) {
       // Resume existing timer

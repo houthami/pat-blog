@@ -129,11 +129,6 @@ export function InstructionViewer({
   // Get current cooking step
   const currentCookingStep = cookingSteps[currentStep]
 
-  console.log('Parsed data:', {
-    totalSteps,
-    currentCookingStep: currentCookingStep?.content || 'none',
-    cookingMode
-  })
 
   // Voice functions
   const speakText = useCallback((text: string) => {
@@ -210,10 +205,7 @@ export function InstructionViewer({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                console.log('Exit cooking mode clicked')
-                onCookingModeToggle && onCookingModeToggle()
-              }}
+              onClick={() => onCookingModeToggle && onCookingModeToggle()}
               className="text-white hover:bg-white/20"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -349,10 +341,7 @@ export function InstructionViewer({
           <div className="flex items-center justify-between gap-4">
             <Button
               variant="outline"
-              onClick={() => {
-                console.log('Previous clicked, current step:', currentStep)
-                onStepChange && onStepChange(Math.max(0, currentStep - 1))
-              }}
+              onClick={() => onStepChange && onStepChange(Math.max(0, currentStep - 1))}
               disabled={currentStep === 0}
               className="flex items-center gap-2"
             >
@@ -361,10 +350,7 @@ export function InstructionViewer({
             </Button>
 
             <Button
-              onClick={() => {
-                console.log('Complete clicked, current step:', currentCookingStep?.index)
-                currentCookingStep && onToggleStep(currentCookingStep.index)
-              }}
+              onClick={() => currentCookingStep && onToggleStep(currentCookingStep.index)}
               className={cn(
                 "flex items-center gap-2",
                 currentCookingStep && completedSteps.has(currentCookingStep.index)
@@ -377,10 +363,7 @@ export function InstructionViewer({
             </Button>
 
             <Button
-              onClick={() => {
-                console.log('Next clicked, current step:', currentStep, 'total:', totalSteps)
-                onStepChange && onStepChange(Math.min(totalSteps - 1, currentStep + 1))
-              }}
+              onClick={() => onStepChange && onStepChange(Math.min(totalSteps - 1, currentStep + 1))}
               disabled={currentStep === totalSteps - 1}
               className="bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2"
             >
@@ -398,10 +381,7 @@ export function InstructionViewer({
                   key={step.index}
                   variant={index === currentStep ? "default" : "outline"}
                   size="sm"
-                  onClick={() => {
-                    console.log('Step overview clicked, going to step:', index)
-                    onStepChange && onStepChange(index)
-                  }}
+                  onClick={() => onStepChange && onStepChange(index)}
                   className={cn(
                     "w-8 h-8 p-0",
                     completedSteps.has(step.index) && "bg-green-500 hover:bg-green-600 text-white"
