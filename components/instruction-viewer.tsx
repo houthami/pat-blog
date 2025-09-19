@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,7 +15,9 @@ import {
   RotateCcw,
   ArrowLeft,
   ArrowRight,
-  Eye
+  Eye,
+  Volume2,
+  VolumeX
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -36,6 +38,11 @@ interface InstructionViewerProps {
   onCookingModeToggle?: () => void
   currentStep?: number
   onStepChange?: (step: number) => void
+  cookingTimer?: number | null
+  isTimerRunning?: boolean
+  onStartTimer?: (minutes: number) => void
+  onStopTimer?: () => void
+  onResetTimer?: () => void
 }
 
 
@@ -46,8 +53,20 @@ export function InstructionViewer({
   cookingMode = false,
   onCookingModeToggle,
   currentStep = 0,
-  onStepChange
+  onStepChange,
+  cookingTimer,
+  isTimerRunning,
+  onStartTimer,
+  onStopTimer,
+  onResetTimer
 }: InstructionViewerProps) {
+  // Voice state
+  const [isReading, setIsReading] = useState(false)
+  const [voiceEnabled, setVoiceEnabled] = useState(false)
+
+  // Timer state
+  const [timerInput, setTimerInput] = useState(5) // Default 5 minutes
+
   // Debug logging
   console.log('InstructionViewer props:', {
     instructions: instructions?.length || 0,
@@ -116,6 +135,66 @@ export function InstructionViewer({
     cookingMode
   })
 
+  // Voice functions
+  const speakText = useCallback((text: string) => {
+    if ('speechSynthesis' in window) {
+      // Stop any current speech
+      speechSynthesis.cancel()
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = 0.9
+      utterance.pitch = 1
+      utterance.volume = 0.8
+
+      utterance.onstart = () => setIsReading(true)
+      utterance.onend = () => setIsReading(false)
+      utterance.onerror = () => setIsReading(false)
+
+      speechSynthesis.speak(utterance)
+    }
+  }, [])
+
+  const stopSpeech = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel()
+      setIsReading(false)
+    }
+  }, [])
+
+  const readCurrentStep = useCallback(() => {
+    if (currentCookingStep) {
+      speakText(`Step ${currentCookingStep.stepNumber}. ${currentCookingStep.content}`)
+    }
+  }, [currentCookingStep, speakText])
+
+  const readAllSteps = useCallback(() => {
+    const allStepsText = cookingSteps.map(step =>
+      `Step ${step.stepNumber}. ${step.content}`
+    ).join('. ')
+    speakText(`Here are all the cooking steps. ${allStepsText}`)
+  }, [cookingSteps, speakText])
+
+  const toggleVoice = useCallback(() => {
+    if (isReading) {
+      stopSpeech()
+    } else {
+      setVoiceEnabled(!voiceEnabled)
+    }
+  }, [isReading, voiceEnabled, stopSpeech])
+
+  // Timer helper functions
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const startTimer = () => {
+    if (onStartTimer && timerInput > 0) {
+      onStartTimer(timerInput)
+    }
+  }
+
   if (cookingMode) {
     return (
       <Card className="border-orange-300 bg-orange-50">
@@ -162,10 +241,109 @@ export function InstructionViewer({
                   <div className="text-xl leading-relaxed text-gray-900">
                     <TextFormatter isInstruction={true}>{currentCookingStep.content}</TextFormatter>
                   </div>
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={readCurrentStep}
+                      disabled={isReading}
+                      className="flex items-center gap-2"
+                    >
+                      {isReading ? (
+                        <>
+                          <VolumeX className="w-4 h-4" />
+                          Reading...
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4" />
+                          Read Step
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Timer Section */}
+          <div className="bg-white rounded-lg p-4 mb-6 border border-orange-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <Timer className="w-5 h-5" />
+                Cooking Timer
+              </h3>
+              {cookingTimer !== null && (
+                <div className={cn(
+                  "text-2xl font-mono font-bold px-3 py-1 rounded",
+                  isTimerRunning
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-800"
+                )}>
+                  {formatTime(cookingTimer)}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {cookingTimer === null ? (
+                // Timer input and start
+                <>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium">Minutes:</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={timerInput}
+                      onChange={(e) => setTimerInput(parseInt(e.target.value) || 1)}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                    />
+                  </div>
+                  <Button
+                    onClick={startTimer}
+                    className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start Timer
+                  </Button>
+                </>
+              ) : (
+                // Timer controls
+                <>
+                  <Button
+                    onClick={isTimerRunning ? onStopTimer : () => onStartTimer && onStartTimer(0)}
+                    variant="outline"
+                    className={cn(
+                      "flex items-center gap-2",
+                      isTimerRunning ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"
+                    )}
+                  >
+                    {isTimerRunning ? (
+                      <>
+                        <Pause className="w-4 h-4" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4" />
+                        Resume
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={onResetTimer}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Navigation */}
           <div className="flex items-center justify-between gap-4">
@@ -239,6 +417,26 @@ export function InstructionViewer({
             </div>
           </div>
         </CardContent>
+
+        {/* Floating Voice Button for Cooking Mode */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            onClick={isReading ? stopSpeech : readCurrentStep}
+            size="lg"
+            className={cn(
+              "w-14 h-14 rounded-full shadow-lg transition-all duration-300",
+              isReading
+                ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                : "bg-orange-500 hover:bg-orange-600 text-white"
+            )}
+          >
+            {isReading ? (
+              <VolumeX className="w-6 h-6" />
+            ) : (
+              <Volume2 className="w-6 h-6" />
+            )}
+          </Button>
+        </div>
       </Card>
     )
   }
@@ -418,6 +616,7 @@ export function InstructionViewer({
           </motion.div>
         )}
       </CardContent>
+
     </Card>
   )
 }

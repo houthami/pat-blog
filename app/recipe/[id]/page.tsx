@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,8 @@ import {
   ChefHat, Clock, User, ArrowLeft, ShoppingCart, Calculator, ExternalLink, Crown,
   Heart, Star, Eye, MessageCircle, Share, Bookmark, Copy, Timer, Users2,
   Flame, Award, TrendingUp, CheckCircle, PlayCircle, PauseCircle, RotateCcw,
-  Utensils, Scale, ThermometerSun, AlertTriangle, Info, Lightbulb, Zap
+  Utensils, Scale, ThermometerSun, AlertTriangle, Info, Lightbulb, Zap,
+  Volume2, VolumeX
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -91,6 +92,7 @@ export default function UnifiedRecipePage() {
   const [cookingTimer, setCookingTimer] = useState<number | null>(null)
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const [showNutrition, setShowNutrition] = useState(false)
+  const [isReading, setIsReading] = useState(false)
 
   // Determine user context and navigation
   const isAuthenticated = !!session
@@ -239,6 +241,149 @@ export default function UnifiedRecipePage() {
     }
     setCompletedSteps(newCompleted)
   }
+
+  // Voice functions
+  const speakText = (text: string) => {
+    if ('speechSynthesis' in window) {
+      // Stop any current speech
+      speechSynthesis.cancel()
+
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = 0.9
+      utterance.pitch = 1
+      utterance.volume = 0.8
+
+      utterance.onstart = () => setIsReading(true)
+      utterance.onend = () => setIsReading(false)
+      utterance.onerror = () => setIsReading(false)
+
+      speechSynthesis.speak(utterance)
+    }
+  }
+
+  const stopSpeech = () => {
+    if ('speechSynthesis' in window) {
+      speechSynthesis.cancel()
+      setIsReading(false)
+    }
+  }
+
+  const readFullRecipe = () => {
+    if (!recipe) return
+
+    // Build complete recipe text
+    let recipeText = `Recipe: ${recipe.title}. `
+
+    if (recipe.description) {
+      recipeText += `Description: ${recipe.description}. `
+    }
+
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      recipeText += `Ingredients: ${recipe.ingredients.join(', ')}. `
+    }
+
+    if (recipe.instructions && recipe.instructions.length > 0) {
+      const instructionsText = recipe.instructions
+        .filter(instruction => !instruction.startsWith('#') && instruction.trim() !== '')
+        .map((instruction, index) => {
+          const cleanInstruction = instruction.startsWith('>')
+            ? instruction.slice(1).trim()
+            : instruction.trim()
+
+          // Remove step numbers if they exist
+          const withoutNumbers = cleanInstruction.replace(/^\d+\s*/, '')
+          return `Step ${index + 1}: ${withoutNumbers}`
+        })
+        .join('. ')
+
+      recipeText += `Instructions: ${instructionsText}`
+    }
+
+    speakText(recipeText)
+  }
+
+  // Timer functionality
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startTimer = (minutes: number) => {
+    if (minutes === 0) {
+      // Resume existing timer
+      if (cookingTimer !== null && !isTimerRunning) {
+        setIsTimerRunning(true)
+        timerRef.current = setInterval(() => {
+          setCookingTimer(prev => {
+            if (prev === null || prev <= 0) {
+              setIsTimerRunning(false)
+              if (timerRef.current) clearInterval(timerRef.current)
+              // Timer finished - could add notification here
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+      }
+    } else {
+      // Start new timer
+      const totalSeconds = minutes * 60
+      setCookingTimer(totalSeconds)
+      setIsTimerRunning(true)
+
+      timerRef.current = setInterval(() => {
+        setCookingTimer(prev => {
+          if (prev === null || prev <= 0) {
+            setIsTimerRunning(false)
+            if (timerRef.current) clearInterval(timerRef.current)
+            // Timer finished - add notification and sound
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('Cooking Timer', {
+                body: 'Time is up!',
+                icon: '/favicon.ico'
+              })
+            }
+
+            // Play sound notification
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+D2u2MdBTKF0fPUhzIHInnL8NyOOwUTaLjr3ZA+CRM=')
+              audio.play().catch(() => {
+                // Fallback: use system beep or alert
+                console.log('Timer finished!')
+              })
+            } catch {
+              console.log('Timer finished!')
+            }
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+  }
+
+  const stopTimer = () => {
+    setIsTimerRunning(false)
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  const resetTimer = () => {
+    setIsTimerRunning(false)
+    setCookingTimer(null)
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [])
 
 
   return (
@@ -494,6 +639,11 @@ export default function UnifiedRecipePage() {
                   onCookingModeToggle={() => setCookingMode(!cookingMode)}
                   currentStep={currentStep}
                   onStepChange={setCurrentStep}
+                  cookingTimer={cookingTimer}
+                  isTimerRunning={isTimerRunning}
+                  onStartTimer={startTimer}
+                  onStopTimer={stopTimer}
+                  onResetTimer={resetTimer}
                 />
               </motion.div>
             </div>
@@ -784,6 +934,29 @@ export default function UnifiedRecipePage() {
           isOpen={showSavePrompt}
           onClose={() => setShowSavePrompt(false)}
         />
+      )}
+
+      {/* Floating Voice Button for Full Recipe */}
+      {recipe && !cookingMode && (
+        <div className="fixed bottom-6 left-6 z-50">
+          <Button
+            onClick={isReading ? stopSpeech : readFullRecipe}
+            size="lg"
+            className={cn(
+              "w-14 h-14 rounded-full shadow-lg transition-all duration-300",
+              isReading
+                ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                : "bg-purple-500 hover:bg-purple-600 text-white"
+            )}
+            title={isReading ? "Stop reading recipe" : "Read full recipe aloud"}
+          >
+            {isReading ? (
+              <VolumeX className="w-6 h-6" />
+            ) : (
+              <Volume2 className="w-6 h-6" />
+            )}
+          </Button>
+        </div>
       )}
     </div>
   )
