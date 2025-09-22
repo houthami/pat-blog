@@ -35,6 +35,22 @@ export async function GET(
             image: true
           }
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            color: true,
+            parent: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                color: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             views: true,
@@ -124,6 +140,9 @@ export async function PATCH(
     if (body.source !== undefined) updates.source = body.source?.trim() || null
     if (body.sourceUrl !== undefined) updates.sourceUrl = body.sourceUrl?.trim() || null
     if (body.sourceNote !== undefined) updates.sourceNote = body.sourceNote?.trim() || null
+
+    // Handle category field
+    if (body.categoryId !== undefined) updates.categoryId = body.categoryId?.trim() || null
 
     // Handle status updates with role-based permissions
     if (body.status !== undefined) {

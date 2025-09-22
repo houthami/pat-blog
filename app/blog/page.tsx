@@ -7,11 +7,19 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { RecipeCardSkeleton, PageLoading } from "@/components/ui/loading-states"
 import { ErrorState, NetworkError } from "@/components/ui/error-states"
-import { ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, BookmarkPlus } from "lucide-react"
+import { ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, BookmarkPlus, Tag } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { useSession } from "next-auth/react"
 import { AnonymousUserBanner } from "@/components/anonymous/progressive-registration"
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  color: string
+  icon?: string
+}
 
 interface Recipe {
   id: string
@@ -28,6 +36,7 @@ interface Recipe {
     comments: number
   }
   averageRating?: number
+  category?: Category
 }
 
 interface ApiResponse {

@@ -126,6 +126,10 @@ model Recipe {
   mealType    String[]    // ["breakfast", "lunch", "dinner", "snack", "dessert"]
   source      String?     // Recipe source: "original", "website", "cookbook", "family", "magazine", etc.
 
+  // Category relationship
+  categoryId  String?
+  category    RecipeCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   publishedAt DateTime?   // When recipe was published
@@ -530,4 +534,42 @@ model RecipeScaling {
   createdAt         DateTime @default(now())
 
   @@map("recipe_scalings")
+}
+
+model RecipeCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+
+  // Visual customization
+  color       String   @default("#6B7280") // Hex color for the category
+  icon        String?  // Icon name (lucide icon name)
+  imageUrl    String?  // Optional category image
+
+  // Hierarchy support
+  parentId    String?
+  parent      RecipeCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    RecipeCategory[] @relation("CategoryHierarchy")
+
+  // Content and SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Status and ordering
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+
+  // Analytics
+  recipeCount Int      @default(0) // Cached count, updated via triggers/cron
+  viewCount   Int      @default(0)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  recipes     Recipe[]
+
+  @@map("recipe_categories")
 }

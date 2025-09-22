@@ -13,6 +13,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { ImageUpload } from "@/components/image-upload"
 import { AIEnhancementModal } from "@/components/ai-enhancement-modal"
 import { InstructionEditor } from "@/components/instruction-editor"
+import { CategorySelector } from "@/components/category-selector"
 
 interface FormData {
   title: string
@@ -23,6 +24,7 @@ interface FormData {
   source: string
   sourceUrl: string
   sourceNote: string
+  categoryId: string
 }
 
 export default function NewRecipePage() {
@@ -36,14 +38,15 @@ export default function NewRecipePage() {
     source: "original",
     sourceUrl: "",
     sourceNote: "",
+    categoryId: "",
   })
   const [isLoading, setIsLoading] = useState(false)
   const [aiModalOpen, setAiModalOpen] = useState(false)
   const [aiField, setAiField] = useState<keyof FormData | null>(null)
   const [autoSaveStatus, setAutoSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved")
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleInputChange = (field: keyof FormData, value: string | undefined) => {
+    setFormData((prev) => ({ ...prev, [field]: value || "" }))
     setAutoSaveStatus("unsaved")
 
     // Auto-save after 2 seconds of inactivity
@@ -220,6 +223,20 @@ export default function NewRecipePage() {
               </CardHeader>
               <CardContent>
                 <ImageUpload value={formData.imageUrl} onChange={(url) => handleInputChange("imageUrl", url)} />
+              </CardContent>
+            </Card>
+
+            {/* Category Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CategorySelector
+                  value={formData.categoryId}
+                  onChange={(categoryId) => handleInputChange("categoryId", categoryId)}
+                  placeholder="Select a category for this recipe"
+                />
               </CardContent>
             </Card>
 

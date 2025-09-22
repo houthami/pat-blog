@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, description, ingredients, instructions, imageUrl, published, source, sourceUrl, sourceNote } = body
+    const { title, description, ingredients, instructions, imageUrl, published, source, sourceUrl, sourceNote, categoryId } = body
 
     if (!title?.trim()) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -112,6 +112,8 @@ export async function POST(request: Request) {
         ...(source && { source: source.trim() }),
         ...(sourceUrl && { sourceUrl: sourceUrl.trim() }),
         ...(sourceNote && { sourceNote: sourceNote.trim() }),
+        // Add category field
+        ...(categoryId && { categoryId: categoryId.trim() }),
       },
     })
 

@@ -12,7 +12,7 @@ import { NetworkError } from "@/components/ui/error-states"
 import {
   ChefHat, Clock, Search, User, Heart, MessageCircle, Eye, Star, Plus, Filter,
   Sparkles, Edit, TrendingUp, Award, Flame, Timer, Users2, BookOpen, Grid3X3,
-  List, SlidersHorizontal, X, ChevronDown, Zap, Crown
+  List, SlidersHorizontal, X, ChevronDown, Zap, Crown, Tag
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -21,6 +21,14 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { UserAccountDropdown } from "@/components/user/user-account-dropdown"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  color: string
+  icon?: string
+}
 
 interface Recipe {
   id: string
@@ -48,6 +56,7 @@ interface Recipe {
   tags?: string[]
   isPopular?: boolean
   isTrending?: boolean
+  category?: Category
 }
 
 interface ApiResponse {
@@ -77,6 +86,8 @@ export default function RecipesPage() {
   const [timeFilter, setTimeFilter] = useState('all')
   const [showFilters, setShowFilters] = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
   const isAuthenticated = !!session?.user
   const userRole = session?.user?.role
@@ -92,7 +103,8 @@ export default function RecipesPage() {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "12",
-        ...(search && { search })
+        ...(search && { search }),
+        ...(selectedCategory !== 'all' && { categoryId: selectedCategory })
       })
 
       const response = await fetch(`/api/blog/recipes?${params}`)
@@ -107,6 +119,17 @@ export default function RecipesPage() {
       setError(error instanceof Error ? error.message : "Failed to fetch recipes")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/categories")
+      if (!response.ok) throw new Error("Failed to fetch categories")
+      const data = await response.json()
+      setCategories(data || [])
+    } catch (error) {
+      console.error("Error fetching categories:", error)
     }
   }
 
@@ -125,12 +148,13 @@ export default function RecipesPage() {
   }
 
   useEffect(() => {
+    fetchCategories()
     if (isDashboardUser) {
       fetchDashboardRecipes()
     } else {
       fetchPublicRecipes(currentPage, searchTerm)
     }
-  }, [isDashboardUser, currentPage, searchTerm])
+  }, [isDashboardUser, currentPage, searchTerm, selectedCategory])
 
   const filteredRecipes = recipes.filter(
     (recipe) =>
@@ -323,6 +347,33 @@ export default function RecipesPage() {
                   <Button type="submit">Search</Button>
                 </form>
 
+                {/* Category Filter */}
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <Tag className="h-4 w-4" />
+                        All Categories
+                      </div>
+                    </SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: category.color }}
+                          />
+                          {category.icon && <span>{category.icon}</span>}
+                          {category.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 {/* User Account Dropdown */}
                 <UserAccountDropdown />
               </div>
@@ -402,6 +453,23 @@ export default function RecipesPage() {
                         <CardDescription className="line-clamp-2 mb-3">
                           {recipe.description}
                         </CardDescription>
+                      )}
+
+                      {recipe.category && (
+                        <div className="mb-3">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs"
+                            style={{
+                              backgroundColor: `${recipe.category.color}20`,
+                              color: recipe.category.color,
+                              borderColor: `${recipe.category.color}40`
+                            }}
+                          >
+                            {recipe.category.icon && <span className="mr-1">{recipe.category.icon}</span>}
+                            {recipe.category.name}
+                          </Badge>
+                        </div>
                       )}
 
                       <div className="space-y-3">

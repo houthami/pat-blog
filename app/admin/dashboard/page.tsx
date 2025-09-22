@@ -15,7 +15,8 @@ import {
   Crown,
   ShoppingCart,
   ExternalLink,
-  Settings
+  Settings,
+  Tag
 } from "lucide-react"
 import { RevenueTracker } from "@/components/analytics/revenue-tracker"
 import { ABTestManager } from "@/components/optimization/ab-test-manager"
@@ -79,7 +80,7 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="revenue" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="revenue" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Revenue
@@ -95,6 +96,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="testing" className="flex items-center gap-2">
               <FlaskConical className="h-4 w-4" />
               A/B Testing
+            </TabsTrigger>
+            <TabsTrigger value="categories" className="flex items-center gap-2">
+              <Tag className="h-4 w-4" />
+              Categories
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -286,6 +291,42 @@ export default function AdminDashboard() {
           {/* A/B Testing */}
           <TabsContent value="testing" className="mt-6">
             <ABTestManager userRole={session.user.role} />
+          </TabsContent>
+
+          {/* Categories */}
+          <TabsContent value="categories" className="mt-6">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Tag className="mr-2 h-5 w-5" />
+                      Recipe Categories
+                    </div>
+                    <Button asChild>
+                      <a href="/admin/categories">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Manage Categories
+                      </a>
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Tag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Category Management</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Create and organize categories to help users find recipes more easily
+                    </p>
+                    <Button asChild variant="outline">
+                      <a href="/admin/categories">
+                        Open Category Manager
+                      </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Settings */}

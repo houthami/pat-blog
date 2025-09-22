@@ -1,8 +1,17 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { ChefHat, Clock, Share2, User } from "lucide-react"
+import { ChefHat, Clock, Share2, User, Tag } from "lucide-react"
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  color: string
+  icon?: string
+}
 
 interface Recipe {
   id: string
@@ -13,6 +22,7 @@ interface Recipe {
     name: string | null
     image: string | null
   }
+  category?: Category
 }
 
 interface RecipeHeaderProps {
@@ -29,9 +39,26 @@ export function RecipeHeader({ recipe, onShare, showAuthor = true }: RecipeHeade
         <div className="flex-1">
           <h1 className="text-4xl font-bold mb-4 text-balance">{recipe.title}</h1>
           {recipe.description && (
-            <p className="text-lg text-muted-foreground leading-relaxed">
+            <p className="text-lg text-muted-foreground leading-relaxed mb-4">
               {recipe.description}
             </p>
+          )}
+          {recipe.category && (
+            <div className="mb-4">
+              <Badge
+                variant="secondary"
+                className="text-sm px-3 py-1"
+                style={{
+                  backgroundColor: `${recipe.category.color}20`,
+                  color: recipe.category.color,
+                  borderColor: `${recipe.category.color}40`
+                }}
+              >
+                <Tag className="mr-2 h-4 w-4" />
+                {recipe.category.icon && <span className="mr-1">{recipe.category.icon}</span>}
+                {recipe.category.name}
+              </Badge>
+            </div>
           )}
         </div>
         {onShare && (
