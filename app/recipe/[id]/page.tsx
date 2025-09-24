@@ -59,6 +59,19 @@ interface Recipe {
     name: string | null
     image: string | null
   }
+  category?: {
+    id: string
+    name: string
+    slug: string
+    color: string
+    icon?: string
+    parent?: {
+      id: string
+      name: string
+      slug: string
+      color: string
+    }
+  }
   _count?: {
     views: number
     interactions: number
@@ -448,7 +461,25 @@ export default function UnifiedRecipePage() {
           >
             {/* Recipe Title & Meta */}
             <div className="text-center mb-8">
-              <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
+                {recipe.category && (
+                  <Badge
+                    className="text-sm border"
+                    style={{
+                      backgroundColor: `${recipe.category.color}15`,
+                      color: recipe.category.color,
+                      borderColor: `${recipe.category.color}40`
+                    }}
+                  >
+                    {recipe.category.icon && <span className="mr-1">{recipe.category.icon}</span>}
+                    {recipe.category.name}
+                    {recipe.category.parent && (
+                      <span className="ml-1 opacity-70 text-xs">
+                        in {recipe.category.parent.name}
+                      </span>
+                    )}
+                  </Badge>
+                )}
                 {recipe.difficulty && (
                   <Badge className={cn("text-sm", getDifficultyColor(recipe.difficulty))}>
                     {recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1)}

@@ -7,16 +7,25 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "10")
     const search = searchParams.get("search") || ""
+    const categoryId = searchParams.get("categoryId") || ""
 
     const skip = (page - 1) * limit
 
-    // Build where condition for search
-    const where = search ? {
-      OR: [
+    // Build where condition for search and category filter
+    const where: any = {
+      status: 'PUBLISHED' // Only show published recipes
+    }
+
+    if (search) {
+      where.OR = [
         { title: { contains: search, mode: "insensitive" as const } },
         { description: { contains: search, mode: "insensitive" as const } }
       ]
-    } : {}
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId
+    }
 
     const [recipes, total] = await Promise.all([
       prisma.recipe.findMany({
@@ -30,6 +39,15 @@ export async function GET(request: Request) {
           description: true,
           imageUrl: true,
           createdAt: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              color: true,
+              icon: true
+            }
+          },
           _count: {
             select: {
               views: true,
