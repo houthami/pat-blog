@@ -1,34 +1,11 @@
 "use client"
 
-import React, { useState, useCallback } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import {
-  CheckCircle,
-  Circle,
-  ChefHat,
-  Timer,
-  Play,
-  Pause,
-  RotateCcw,
-  ArrowLeft,
-  ArrowRight,
-  Eye,
-  Volume2,
-  VolumeX
-} from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import { cn } from "@/lib/utils"
-import { TextFormatter } from "@/components/text-formatter"
-
-interface InstructionItem {
-  type: 'title' | 'note' | 'step'
-  content: string
-  index: number
-  stepNumber?: number
-}
+import React from 'react'
+import { useVoiceReader } from "@/hooks/use-voice-reader"
+import { useCookingTimer } from "@/hooks/use-cooking-timer"
+import { useInstructionParser } from "@/hooks/use-instruction-parser"
+import { CookingModeView } from "./recipe/cooking-mode-view"
+import { StandardInstructionView } from "./recipe/standard-instruction-view"
 
 interface InstructionViewerProps {
   instructions: string[]
@@ -45,7 +22,6 @@ interface InstructionViewerProps {
   onResetTimer?: () => void
 }
 
-
 export function InstructionViewer({
   instructions,
   completedSteps,
@@ -60,543 +36,103 @@ export function InstructionViewer({
   onStopTimer,
   onResetTimer
 }: InstructionViewerProps) {
-  // Voice state
-  const [isReading, setIsReading] = useState(false)
-  const [voiceEnabled, setVoiceEnabled] = useState(false)
-
-  // Timer state
-  const [timerInput, setTimerInput] = useState(5) // Default 5 minutes
-
-  // Debug logging
-  console.log('InstructionViewer props:', {
-    instructions: instructions?.length || 0,
-    cookingMode,
-    currentStep,
-    hasOnStepChange: !!onStepChange,
-    hasOnCookingModeToggle: !!onCookingModeToggle
-  })
-
-  // Parse instructions into structured items
-  const parsedInstructions: InstructionItem[] = instructions.map((instruction, index) => {
-    const trimmed = instruction.trim()
-    let type: 'title' | 'note' | 'step' = 'step'
-    let content = trimmed
-
-    if (trimmed.startsWith('#')) {
-      type = 'title'
-      content = trimmed.slice(1).trim()
-    } else if (trimmed.startsWith('>')) {
-      // Check if it's a numbered step (like "> 1 Do something") or just a note
-      const afterArrow = trimmed.slice(1).trim()
-      if (/^\d+\s/.test(afterArrow)) {
-        // It's a numbered step like "> 1 Mix ingredients"
-        type = 'step'
-        content = afterArrow
-      } else {
-        // It's a regular note like "> Note: Make sure to..."
-        type = 'note'
-        content = afterArrow
-      }
-    }
-
-    return { type, content, index }
-  })
-
-  // Add step numbers only to actual cooking steps that don't already have numbers
-  let stepCounter = 1
-  parsedInstructions.forEach(item => {
-    if (item.type === 'step') {
-      // Check if the content already starts with a number
-      if (/^\d+\s/.test(item.content)) {
-        // Extract the existing number
-        const match = item.content.match(/^(\d+)\s(.*)/)
-        if (match) {
-          item.stepNumber = parseInt(match[1])
-          item.content = match[2] // Remove the number from content
-        }
-      } else {
-        // Add sequential number for unnumbered steps
-        item.stepNumber = stepCounter++
-      }
+  // Custom hooks for functionality
+  const voiceReader = useVoiceReader()
+  const timer = useCookingTimer({
+    onComplete: () => {
+      // Timer completed - could trigger notification
+      voiceReader.speak("Timer completed!")
     }
   })
-
-  // Get only the actual cooking steps for cooking mode
-  const cookingSteps = parsedInstructions.filter(item => item.type === 'step')
-  const totalSteps = cookingSteps.length
-  const completedCount = cookingSteps.filter(step => completedSteps.has(step.index)).length
+  const {
+    parsedInstructions,
+    cookingSteps,
+    getStepByNumber,
+    getTotalSteps
+  } = useInstructionParser(instructions)
 
   // Get current cooking step
-  const currentCookingStep = cookingSteps[currentStep]
+  const currentCookingStep = getStepByNumber(currentStep)
+  const totalSteps = getTotalSteps
 
-
-  // Voice functions
-  const speakText = useCallback((text: string) => {
-    if ('speechSynthesis' in window) {
-      // Stop any current speech
-      speechSynthesis.cancel()
-
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 0.8
-
-      utterance.onstart = () => setIsReading(true)
-      utterance.onend = () => setIsReading(false)
-      utterance.onerror = () => setIsReading(false)
-
-      speechSynthesis.speak(utterance)
-    }
-  }, [])
-
-  const stopSpeech = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel()
-      setIsReading(false)
-    }
-  }, [])
-
-  const readCurrentStep = useCallback(() => {
+  // Enhanced voice functions
+  const readCurrentStep = () => {
     if (currentCookingStep) {
-      speakText(`Step ${currentCookingStep.stepNumber}. ${currentCookingStep.content}`)
+      voiceReader.speak(`Step ${currentCookingStep.stepNumber}. ${currentCookingStep.content}`)
     }
-  }, [currentCookingStep, speakText])
+  }
 
-  const readAllSteps = useCallback(() => {
+  const readAllSteps = () => {
     const allStepsText = cookingSteps.map(step =>
       `Step ${step.stepNumber}. ${step.content}`
     ).join('. ')
-    speakText(`Here are all the cooking steps. ${allStepsText}`)
-  }, [cookingSteps, speakText])
-
-  const toggleVoice = useCallback(() => {
-    if (isReading) {
-      stopSpeech()
-    } else {
-      setVoiceEnabled(!voiceEnabled)
-    }
-  }, [isReading, voiceEnabled, stopSpeech])
-
-  // Timer helper functions
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    voiceReader.speak(`Here are all the cooking steps. ${allStepsText}`)
   }
 
-  const startTimer = () => {
-    if (onStartTimer && timerInput > 0) {
-      onStartTimer(timerInput)
+  // Timer interface - use external timer props if provided, otherwise use internal timer
+  const cookingTimerState = {
+    timeLeft: cookingTimer !== undefined ? cookingTimer : timer.timeLeft,
+    isRunning: isTimerRunning !== undefined ? isTimerRunning : timer.isRunning,
+    formatTime: cookingTimer !== undefined
+      ? (cookingTimer !== null ? `${Math.floor(cookingTimer / 60)}:${(cookingTimer % 60).toString().padStart(2, '0')}` : null)
+      : timer.formatTime,
+    isActive: cookingTimer !== undefined ? cookingTimer !== null : timer.isActive
+  }
+
+  const handleStartTimer = (minutes: number) => {
+    if (onStartTimer) {
+      onStartTimer(minutes)
+    } else {
+      timer.start(minutes)
+    }
+  }
+
+  const handleStopTimer = () => {
+    if (onStopTimer) {
+      onStopTimer()
+    } else {
+      timer.pause()
+    }
+  }
+
+  const handleResetTimer = () => {
+    if (onResetTimer) {
+      onResetTimer()
+    } else {
+      timer.reset()
     }
   }
 
   if (cookingMode) {
     return (
-      <Card className="border-orange-300 bg-orange-50">
-        <CardHeader className="bg-orange-500 text-white">
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ChefHat className="w-6 h-6" />
-              Cooking Mode
-              <Badge className="bg-white/20 text-white">
-                Step {currentStep + 1} of {totalSteps}
-              </Badge>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onCookingModeToggle && onCookingModeToggle()}
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Exit
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          {/* Progress */}
-          <div className="mb-6">
-            <Progress
-              value={((currentStep + 1) / totalSteps) * 100}
-              className="h-3"
-            />
-          </div>
-
-          {/* Current Step */}
-          {currentCookingStep && (
-            <div className="bg-white rounded-lg p-6 mb-6 border border-orange-200">
-              <div className="flex items-start gap-4">
-                <div className="bg-orange-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl font-bold shrink-0">
-                  {currentCookingStep.stepNumber}
-                </div>
-                <div className="flex-1">
-                  <div className="text-xl leading-relaxed text-gray-900">
-                    <TextFormatter isInstruction={true}>{currentCookingStep.content}</TextFormatter>
-                  </div>
-                  <div className="mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={readCurrentStep}
-                      disabled={isReading}
-                      className="flex items-center gap-2"
-                    >
-                      {isReading ? (
-                        <>
-                          <VolumeX className="w-4 h-4" />
-                          Reading...
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 className="w-4 h-4" />
-                          Read Step
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Timer Section */}
-          <div className="bg-white rounded-lg p-4 mb-6 border border-orange-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <Timer className="w-5 h-5" />
-                Cooking Timer
-              </h3>
-              {cookingTimer !== null && (
-                <div className={cn(
-                  "text-2xl font-mono font-bold px-3 py-1 rounded",
-                  isTimerRunning
-                    ? "bg-green-100 text-green-800"
-                    : "bg-gray-100 text-gray-800"
-                )}>
-                  {formatTime(cookingTimer)}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              {cookingTimer === null ? (
-                // Timer input and start
-                <>
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium">Minutes:</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="60"
-                      value={timerInput}
-                      onChange={(e) => setTimerInput(parseInt(e.target.value) || 1)}
-                      className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                    />
-                  </div>
-                  <Button
-                    onClick={startTimer}
-                    className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    Start Timer
-                  </Button>
-                </>
-              ) : (
-                // Timer controls
-                <>
-                  <Button
-                    onClick={isTimerRunning ? onStopTimer : () => onStartTimer && onStartTimer(0)}
-                    variant="outline"
-                    className={cn(
-                      "flex items-center gap-2",
-                      isTimerRunning ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"
-                    )}
-                  >
-                    {isTimerRunning ? (
-                      <>
-                        <Pause className="w-4 h-4" />
-                        Pause
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4" />
-                        Resume
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={onResetTimer}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Reset
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between gap-4">
-            <Button
-              variant="outline"
-              onClick={() => onStepChange && onStepChange(Math.max(0, currentStep - 1))}
-              disabled={currentStep === 0}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Previous
-            </Button>
-
-            <Button
-              onClick={() => currentCookingStep && onToggleStep(currentCookingStep.index)}
-              className={cn(
-                "flex items-center gap-2",
-                currentCookingStep && completedSteps.has(currentCookingStep.index)
-                  ? "bg-green-500 hover:bg-green-600 text-white"
-                  : "bg-orange-500 hover:bg-orange-600 text-white"
-              )}
-            >
-              <CheckCircle className="w-4 h-4" />
-              {currentCookingStep && completedSteps.has(currentCookingStep.index) ? "Done" : "Complete"}
-            </Button>
-
-            <Button
-              onClick={() => onStepChange && onStepChange(Math.min(totalSteps - 1, currentStep + 1))}
-              disabled={currentStep === totalSteps - 1}
-              className="bg-orange-500 hover:bg-orange-600 text-white flex items-center gap-2"
-            >
-              Next
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {/* Step Overview */}
-          <div className="mt-6 pt-6 border-t border-orange-200">
-            <p className="text-sm font-medium text-gray-700 mb-3">Steps:</p>
-            <div className="flex flex-wrap gap-2">
-              {cookingSteps.map((step, index) => (
-                <Button
-                  key={step.index}
-                  variant={index === currentStep ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onStepChange && onStepChange(index)}
-                  className={cn(
-                    "w-8 h-8 p-0",
-                    completedSteps.has(step.index) && "bg-green-500 hover:bg-green-600 text-white"
-                  )}
-                >
-                  {completedSteps.has(step.index) ? (
-                    <CheckCircle className="w-3 h-3" />
-                  ) : (
-                    step.stepNumber
-                  )}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-
-        {/* Floating Voice Button for Cooking Mode */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <Button
-            onClick={isReading ? stopSpeech : readCurrentStep}
-            size="lg"
-            className={cn(
-              "w-14 h-14 rounded-full shadow-lg transition-all duration-300",
-              isReading
-                ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
-                : "bg-orange-500 hover:bg-orange-600 text-white"
-            )}
-          >
-            {isReading ? (
-              <VolumeX className="w-6 h-6" />
-            ) : (
-              <Volume2 className="w-6 h-6" />
-            )}
-          </Button>
-        </div>
-      </Card>
+      <CookingModeView
+        currentStep={currentCookingStep}
+        currentStepIndex={currentStep}
+        totalSteps={totalSteps}
+        completedSteps={completedSteps}
+        cookingTimer={cookingTimerState}
+        voiceReader={voiceReader}
+        onToggleStep={onToggleStep}
+        onStepChange={onStepChange || (() => {})}
+        onCookingModeToggle={onCookingModeToggle || (() => {})}
+        onStartTimer={handleStartTimer}
+        onStopTimer={handleStopTimer}
+        onResetTimer={handleResetTimer}
+        onReadCurrentStep={readCurrentStep}
+        onStopSpeech={voiceReader.stop}
+        cookingSteps={cookingSteps}
+      />
     )
   }
 
   // Regular instruction view
   return (
-    <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-      <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-lg">
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ChefHat className="w-6 h-6" />
-            Instructions
-            <Badge className="bg-white/20 text-white border-white/30">
-              {totalSteps} Steps
-            </Badge>
-          </div>
-          {onCookingModeToggle && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                console.log('Start cooking mode clicked')
-                onCookingModeToggle()
-              }}
-              className="text-white hover:bg-white/20"
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Cooking Mode
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-6">
-        {/* Progress Summary */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Progress</span>
-            <span className="text-sm text-gray-600">{completedCount} of {totalSteps} completed</span>
-          </div>
-          <Progress
-            value={(completedCount / totalSteps) * 100}
-            className="h-2"
-          />
-        </div>
-
-        {/* Instructions List */}
-        <div className="space-y-4">
-          {parsedInstructions.map((item, index) => {
-            if (item.type === 'title') {
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="font-bold text-xl text-gray-800 mt-8 mb-4 border-b-2 border-blue-200 pb-2"
-                >
-                  <TextFormatter>{item.content}</TextFormatter>
-                </motion.div>
-              )
-            }
-
-            if (item.type === 'note') {
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg my-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="bg-amber-400 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">
-                      <Eye className="w-3 h-3" />
-                    </div>
-                    <div className="italic text-amber-800">
-                      <TextFormatter>{item.content}</TextFormatter>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            }
-
-            // Step
-            const isCompleted = completedSteps.has(item.index)
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className={cn(
-                  "flex gap-4 p-4 rounded-xl transition-all duration-300 border",
-                  isCompleted
-                    ? "bg-green-50 border-green-200"
-                    : "bg-gray-50 hover:bg-blue-50 border-transparent hover:border-blue-200"
-                )}
-              >
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors cursor-pointer shrink-0",
-                    isCompleted
-                      ? "bg-green-500 text-white"
-                      : "bg-blue-500 text-white hover:bg-blue-600"
-                  )}
-                  onClick={() => onToggleStep(item.index)}
-                >
-                  {isCompleted ? (
-                    <CheckCircle className="w-5 h-5" />
-                  ) : (
-                    item.stepNumber
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className={cn(
-                    "leading-relaxed transition-colors",
-                    isCompleted
-                      ? "text-green-800 line-through"
-                      : "text-gray-700"
-                  )}>
-                    <TextFormatter isInstruction={true}>{item.content}</TextFormatter>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onToggleStep(item.index)}
-                    className={cn(
-                      "mt-2 h-8",
-                      isCompleted
-                        ? "text-green-600 hover:text-green-700"
-                        : "text-blue-600 hover:text-blue-700"
-                    )}
-                  >
-                    {isCompleted ? "Undo" : "Mark Done"}
-                  </Button>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
-
-        {/* Enhanced Start Cooking Mode */}
-        {!cookingMode && onCookingModeToggle && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-8 p-8 bg-gradient-to-br from-orange-100 via-amber-50 to-orange-50 rounded-2xl border-2 border-orange-200 shadow-lg"
-          >
-            <div className="text-center space-y-4">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto">
-                <ChefHat className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">Ready to Cook?</h3>
-                <p className="text-gray-600 max-w-md mx-auto">
-                  Enter Kitchen Mode for hands-free cooking with timers, voice guidance, and large text perfect for the kitchen.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <Button
-                  onClick={() => {
-                    console.log('Start Kitchen Mode (big button) clicked')
-                    onCookingModeToggle && onCookingModeToggle()
-                  }}
-                  size="lg"
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white h-14 px-8 text-lg font-semibold shadow-lg"
-                >
-                  <Play className="w-5 h-5 mr-3" />
-                  Start Kitchen Mode
-                </Button>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Timer className="w-4 h-4" />
-                  <span>Includes timers & voice guidance</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </CardContent>
-
-    </Card>
+    <StandardInstructionView
+      parsedInstructions={parsedInstructions}
+      cookingSteps={cookingSteps}
+      completedSteps={completedSteps}
+      onToggleStep={onToggleStep}
+      onCookingModeToggle={onCookingModeToggle}
+    />
   )
 }
